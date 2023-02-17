@@ -17,7 +17,7 @@ pub mod piece {
         White,
     }
 
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq)]
     pub struct PieceLoc {
         pub rank: u8,
         pub file: u8,
@@ -45,7 +45,7 @@ pub mod piece {
             }
         }
 
-        pub fn move_piece(mut self, pos: PieceLoc) {
+        pub fn move_piece(&mut self, pos: PieceLoc) {
             self.pos = pos.clone();
         }
     }
@@ -73,10 +73,13 @@ pub mod piece {
 pub mod board {
     use super::piece::{Piece, PieceColor, PieceLoc, PieceType};
 
+    #[derive(Clone)]
     pub struct Board {
         pub ranks: u8,
         pub files: u8,
+        pub current_turn: PieceColor,
         pub pieces: Vec<Piece>,
+        pub graveyard: Vec<Piece>,
     }
 
     impl Board {
@@ -84,11 +87,13 @@ pub mod board {
             Board {
                 ranks: 8,
                 files: 8,
+                current_turn: PieceColor::White,
                 pieces: generate_default_game_pieces(),
+                graveyard: Vec::new(),
             }
         }
 
-        fn is_valid_move(self, piece: &Piece, dest: &PieceLoc) -> bool {
+        fn is_valid_move(&self, piece: &Piece, dest: &PieceLoc) -> bool {
             let start = &piece.pos;
             if dest.file >= self.files
                 || dest.rank >= self.ranks
@@ -137,12 +142,16 @@ pub mod board {
             }
         }
 
-        pub fn move_piece(self, piece: &Piece, dest: PieceLoc) {
+        pub fn move_piece(&self, piece: &mut Piece, dest: PieceLoc) {
             println!("Attempting to move piece {piece:?}");
             if self.is_valid_move(piece, &dest) {
                 piece.move_piece(dest);
                 println!("Moved piece. New piece information: {piece:?}");
             }
+        }
+
+        pub fn get_piece_by_loc(&self, loc: PieceLoc) -> Option<Piece> {
+            self.pieces.iter().find(|piece| piece.pos == loc).copied()
         }
     }
 
@@ -176,24 +185,5 @@ pub mod board {
         }
 
         pieces
-    }
-}
-
-pub mod game {
-    use super::board::Board;
-    use super::piece::Piece;
-
-    pub struct Game {
-        pub board: Board,
-        pub graveyard: Vec<Piece>,
-    }
-
-    impl Game {
-        pub fn new() -> Game {
-            Game {
-                board: Board::new(),
-                graveyard: Vec::<Piece>::new(),
-            }
-        }
     }
 }

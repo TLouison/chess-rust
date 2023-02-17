@@ -3,16 +3,12 @@ use game::piece::PieceLoc;
 mod game;
 
 fn main() {
-    println!("Hello, world!");
+    let game = game::board::Board::new();
 
-    let current_game = game::game::Game::new();
-    let current_pieces = &current_game.board.pieces;
-    for (i, piece) in current_pieces.iter().enumerate() {
-        println!("{i} {piece:?}");
+    if let Some(mut piece) = &game.get_piece_by_loc(PieceLoc { rank: 1, file: 4 }) {
+        println!("Piece found: {piece:?}");
+        game.move_piece(&mut piece, PieceLoc { rank: 3, file: 4 });
+    } else {
+        println!("No piece found there.");
     }
-
-    let kings_pawn = current_pieces[12];
-    current_game
-        .board
-        .move_piece(&kings_pawn, PieceLoc::new(4, 4));
 }
