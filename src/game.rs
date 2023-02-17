@@ -73,11 +73,19 @@ pub mod piece {
 pub mod board {
     use super::piece::{Piece, PieceColor, PieceLoc, PieceType};
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
+    pub struct Move {
+        piece: Piece,
+        start_pos: PieceLoc,
+        end_pos: PieceLoc,
+    }
+
+    #[derive(Clone, Debug)]
     pub struct Board {
         pub ranks: u8,
         pub files: u8,
         pub current_turn: PieceColor,
+        pub move_list: Vec<Move>,
         pub pieces: Vec<Piece>,
         pub graveyard: Vec<Piece>,
     }
@@ -88,9 +96,19 @@ pub mod board {
                 ranks: 8,
                 files: 8,
                 current_turn: PieceColor::White,
+                move_list: Vec::new(),
                 pieces: generate_default_game_pieces(),
                 graveyard: Vec::new(),
             }
+        }
+
+        fn record_move(&mut self, piece: &Piece, dest: &PieceLoc) {
+            let start = &piece.pos;
+            self.move_list.push(Move {
+                piece: piece.clone(),
+                start_pos: start.clone(),
+                end_pos: dest.clone(),
+            })
         }
 
         fn is_valid_move(&self, piece: &Piece, dest: &PieceLoc) -> bool {
@@ -142,11 +160,12 @@ pub mod board {
             }
         }
 
-        pub fn move_piece(&self, piece: &mut Piece, dest: PieceLoc) {
+        pub fn move_piece(&mut self, piece: &mut Piece, dest: PieceLoc) {
             println!("Attempting to move piece {piece:?}");
             if self.is_valid_move(piece, &dest) {
                 piece.move_piece(dest);
                 println!("Moved piece. New piece information: {piece:?}");
+                self.record_move(piece, &dest)
             }
         }
 
