@@ -34,6 +34,7 @@ pub mod piece {
         pub pos: PieceLoc,
         pub piece_type: PieceType,
         pub color: PieceColor,
+        pub alive: bool,
     }
 
     impl Piece {
@@ -42,11 +43,8 @@ pub mod piece {
                 pos: PieceLoc::new(rank, file),
                 piece_type: p_type,
                 color,
+                alive: true,
             }
-        }
-
-        pub fn move_piece(&mut self, pos: PieceLoc) {
-            self.pos = pos.clone();
         }
     }
 
@@ -65,25 +63,38 @@ pub mod piece {
                 .field("Position", &self.pos)
                 .field("Type", &self.piece_type)
                 .field("Color", &self.color)
+                .field("Alive", &self.alive)
                 .finish()
         }
     }
 }
 
 pub mod board {
+    use crate::game::piece;
+
     use super::piece::{Piece, PieceColor, PieceLoc, PieceType};
 
     #[derive(Clone, Debug)]
     pub struct Move {
-        piece: Piece,
-        start_pos: PieceLoc,
-        end_pos: PieceLoc,
+        pub piece_idx: usize,
+        pub start_pos: PieceLoc,
+        pub end_pos: PieceLoc,
+    }
+
+    impl Move {
+        pub fn new(piece_idx: usize, start: PieceLoc, dest: PieceLoc) -> Move {
+            Move {
+                piece_idx: piece_idx.clone(),
+                start_pos: start.clone(),
+                end_pos: dest.clone(),
+            }
+        }
     }
 
     #[derive(Clone, Debug)]
     pub struct Board {
-        pub ranks: u8,
-        pub files: u8,
+        ranks: u8,
+        files: u8,
         pub current_turn: PieceColor,
         pub move_list: Vec<Move>,
         pub pieces: Vec<Piece>,
@@ -102,13 +113,22 @@ pub mod board {
             }
         }
 
-        fn record_move(&mut self, piece: &Piece, dest: &PieceLoc) {
-            let start = &piece.pos;
-            self.move_list.push(Move {
-                piece: piece.clone(),
-                start_pos: start.clone(),
-                end_pos: dest.clone(),
-            })
+        fn update(self, pieces: Vec<Piece>, move_list: Vec<Move>) -> Board {
+            Board {
+                pieces,
+                move_list,
+                ..self
+            }
+        }
+
+        fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
+            let mut new_move_list = self.move_list.clone();
+            new_move_list.push(Move {
+                piece_idx: new_move.piece_idx.clone(),
+                start_pos: new_move.start_pos.clone(),
+                end_pos: new_move.end_pos.clone(),
+            });
+            new_move_list
         }
 
         fn is_valid_move(&self, piece: &Piece, dest: &PieceLoc) -> bool {
@@ -160,17 +180,31 @@ pub mod board {
             }
         }
 
-        pub fn move_piece(&mut self, piece: &mut Piece, dest: PieceLoc) {
-            println!("Attempting to move piece {piece:?}");
-            if self.is_valid_move(piece, &dest) {
-                piece.move_piece(dest);
-                println!("Moved piece. New piece information: {piece:?}");
-                self.record_move(piece, &dest)
+        pub fn move_piece(mut self, new_move: Move) -> Board {
+            let selected_piece = self.pieces[new_move.piece_idx];
+            println!("Attempting to move piece {selected_piece:?}");
+            if self.is_valid_move(&selected_piece, &new_move.end_pos) {
+                let new_move_list = self.record_move(&new_move);
+                let mut new_pieces = self.pieces.clone();
+                new_pieces[new_move.piece_idx].pos = new_move.end_pos;
+                return self.update(new_pieces, new_move_list);
+            }
+            self
+        }
+
+        // Takes in a piece location and optionally returns the piece's index if exists
+        pub fn piece_exists_at_location(&self, loc: PieceLoc) -> Option<usize> {
+            if let Some(piece_idx) = self.get_piece_index_by_loc(loc) {
+                println!("Found piece at {loc:?}");
+                Some(piece_idx)
+            } else {
+                println!("No piece at {loc:?}");
+                None
             }
         }
 
-        pub fn get_piece_by_loc(&self, loc: PieceLoc) -> Option<Piece> {
-            self.pieces.iter().find(|piece| piece.pos == loc).copied()
+        fn get_piece_index_by_loc(&self, loc: PieceLoc) -> Option<usize> {
+            self.pieces.iter().position(|piece| piece.pos == loc)
         }
     }
 
@@ -190,6 +224,9 @@ pub mod board {
             pieces.push(Piece::new(1, file, PieceType::Pawn, PieceColor::White));
         }
 
+        for file in 0..8 {
+            pieces.push(Piece::new(6, file, PieceType::Pawn, PieceColor::Black));
+        }
         pieces.push(Piece::new(7, 0, PieceType::Rook, PieceColor::Black));
         pieces.push(Piece::new(7, 1, PieceType::Knight, PieceColor::Black));
         pieces.push(Piece::new(7, 2, PieceType::Bishop, PieceColor::Black));
@@ -198,10 +235,6 @@ pub mod board {
         pieces.push(Piece::new(7, 5, PieceType::Bishop, PieceColor::Black));
         pieces.push(Piece::new(7, 6, PieceType::Knight, PieceColor::Black));
         pieces.push(Piece::new(7, 7, PieceType::Rook, PieceColor::Black));
-
-        for file in 0..8 {
-            pieces.push(Piece::new(6, file, PieceType::Pawn, PieceColor::Black));
-        }
 
         pieces
     }
