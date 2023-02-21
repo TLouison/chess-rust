@@ -11,10 +11,25 @@ pub mod piece {
         King,
     }
 
-    #[derive(Copy, Debug, Clone)]
+    #[derive(Copy, Debug, Clone, PartialEq)]
     pub enum PieceColor {
         Black,
         White,
+    }
+
+    impl PieceColor {
+        pub fn flip(self) -> PieceColor {
+            match self {
+                Self::Black => Self::White,
+                Self::White => Self::Black,
+            }
+        }
+    }
+
+    impl fmt::Display for PieceColor {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{:?}", self)
+        }
     }
 
     #[derive(Copy, Clone, PartialEq)]
@@ -122,6 +137,7 @@ pub mod board {
             Board {
                 pieces,
                 move_list,
+                current_turn: self.current_turn.flip(),
                 ..self
             }
         }
@@ -176,6 +192,15 @@ pub mod board {
                 return false;
             }
 
+            if let Some(existing_piece) = self.piece_exists_at_location(*dest) {
+                if existing_piece.piece.color == piece.color {
+                    println!(
+                        "Cannot move piece to location occupied by another one of your pieces."
+                    );
+                    return false;
+                }
+            }
+
             match piece.piece_type {
                 PieceType::Pawn => {
                     // Confirm the piece isn't moving further than a single square
@@ -218,6 +243,14 @@ pub mod board {
 
         pub fn move_piece(mut self, new_move: Move) -> Board {
             let selected_piece = self.pieces[new_move.piece_idx];
+
+            if self.current_turn != selected_piece.color {
+                println!(
+                    "You cannot move that piece, it is currently {}'s turn.",
+                    self.current_turn
+                );
+                return self;
+            }
             println!("Attempting to move piece {selected_piece:?}");
             if self.is_valid_move(&selected_piece, &new_move.end_pos) {
                 let new_move_list = self.record_move(&new_move);
