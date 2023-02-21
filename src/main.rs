@@ -9,6 +9,6 @@ fn main() {
             game = game.move_piece(new_move);
         }
 
-        println!("{:?}", game.move_list);
+        println!("{game}");
     }
 }

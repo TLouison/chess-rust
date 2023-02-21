@@ -70,6 +70,9 @@ pub mod piece {
 }
 
 pub mod board {
+    use core::fmt;
+    use std::io::Write;
+
     use crate::game::piece;
 
     use super::piece::{Piece, PieceColor, PieceLoc, PieceType};
@@ -237,5 +240,37 @@ pub mod board {
         pieces.push(Piece::new(7, 7, PieceType::Rook, PieceColor::Black));
 
         pieces
+    }
+
+    impl fmt::Display for Board {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let mut chessboard = vec!['.'; (self.ranks * self.files) as usize];
+            for piece in &self.pieces {
+                let (x, y) = (piece.pos.rank as usize, piece.pos.file as usize);
+
+                let display_char;
+                match piece.piece_type {
+                    PieceType::Pawn => display_char = 'P',
+                    PieceType::Knight => display_char = 'N',
+                    PieceType::Bishop => display_char = 'B',
+                    PieceType::Rook => display_char = 'R',
+                    PieceType::Queen => display_char = 'Q',
+                    PieceType::King => display_char = 'K',
+                }
+
+                chessboard[(x * (self.ranks as usize)) + y] = display_char;
+            }
+
+            let mut output: String = "".to_string();
+            for rank in chessboard.chunks(self.ranks.into()).rev() {
+                for square in 0..self.files as usize {
+                    output.push(rank[square]);
+                    output.push(' ');
+                }
+                output.push('\n');
+            }
+
+            write!(f, "{}", output)
+        }
     }
 }
