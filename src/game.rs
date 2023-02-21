@@ -29,6 +29,11 @@ pub mod piece {
         }
     }
 
+    pub struct PieceResult {
+        pub piece: Piece,
+        pub index: usize,
+    }
+
     #[derive(Copy, Clone)]
     pub struct Piece {
         pub pos: PieceLoc,
@@ -71,11 +76,8 @@ pub mod piece {
 
 pub mod board {
     use core::fmt;
-    use std::io::Write;
 
-    use crate::game::piece;
-
-    use super::piece::{Piece, PieceColor, PieceLoc, PieceType};
+    use super::piece::{Piece, PieceColor, PieceLoc, PieceResult, PieceType};
 
     #[derive(Clone, Debug)]
     pub struct Move {
@@ -111,7 +113,7 @@ pub mod board {
                 files: 8,
                 current_turn: PieceColor::White,
                 move_list: Vec::new(),
-                pieces: generate_default_game_pieces(),
+                pieces: Board::generate_default_game_pieces(),
                 graveyard: Vec::new(),
             }
         }
@@ -122,6 +124,37 @@ pub mod board {
                 move_list,
                 ..self
             }
+        }
+
+        fn generate_default_game_pieces() -> Vec<Piece> {
+            let mut pieces = Vec::<Piece>::new();
+
+            pieces.push(Piece::new(0, 0, PieceType::Rook, PieceColor::White));
+            pieces.push(Piece::new(0, 1, PieceType::Knight, PieceColor::White));
+            pieces.push(Piece::new(0, 2, PieceType::Bishop, PieceColor::White));
+            pieces.push(Piece::new(0, 3, PieceType::Queen, PieceColor::White));
+            pieces.push(Piece::new(0, 4, PieceType::King, PieceColor::White));
+            pieces.push(Piece::new(0, 5, PieceType::Bishop, PieceColor::White));
+            pieces.push(Piece::new(0, 6, PieceType::Knight, PieceColor::White));
+            pieces.push(Piece::new(0, 7, PieceType::Rook, PieceColor::White));
+
+            for file in 0..8 {
+                pieces.push(Piece::new(1, file, PieceType::Pawn, PieceColor::White));
+            }
+
+            for file in 0..8 {
+                pieces.push(Piece::new(6, file, PieceType::Pawn, PieceColor::Black));
+            }
+            pieces.push(Piece::new(7, 0, PieceType::Rook, PieceColor::Black));
+            pieces.push(Piece::new(7, 1, PieceType::Knight, PieceColor::Black));
+            pieces.push(Piece::new(7, 2, PieceType::Bishop, PieceColor::Black));
+            pieces.push(Piece::new(7, 3, PieceType::Queen, PieceColor::Black));
+            pieces.push(Piece::new(7, 4, PieceType::King, PieceColor::Black));
+            pieces.push(Piece::new(7, 5, PieceType::Bishop, PieceColor::Black));
+            pieces.push(Piece::new(7, 6, PieceType::Knight, PieceColor::Black));
+            pieces.push(Piece::new(7, 7, PieceType::Rook, PieceColor::Black));
+
+            pieces
         }
 
         fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
@@ -196,12 +229,13 @@ pub mod board {
         }
 
         // Takes in a piece location and optionally returns the piece's index if exists
-        pub fn piece_exists_at_location(&self, loc: PieceLoc) -> Option<usize> {
+        pub fn piece_exists_at_location(&self, loc: PieceLoc) -> Option<PieceResult> {
             if let Some(piece_idx) = self.get_piece_index_by_loc(loc) {
-                println!("Found piece at {loc:?}");
-                Some(piece_idx)
+                Some(PieceResult {
+                    piece: self.pieces[piece_idx],
+                    index: piece_idx,
+                })
             } else {
-                println!("No piece at {loc:?}");
                 None
             }
         }
@@ -209,37 +243,6 @@ pub mod board {
         fn get_piece_index_by_loc(&self, loc: PieceLoc) -> Option<usize> {
             self.pieces.iter().position(|piece| piece.pos == loc)
         }
-    }
-
-    fn generate_default_game_pieces() -> Vec<Piece> {
-        let mut pieces = Vec::<Piece>::new();
-
-        pieces.push(Piece::new(0, 0, PieceType::Rook, PieceColor::White));
-        pieces.push(Piece::new(0, 1, PieceType::Knight, PieceColor::White));
-        pieces.push(Piece::new(0, 2, PieceType::Bishop, PieceColor::White));
-        pieces.push(Piece::new(0, 3, PieceType::Queen, PieceColor::White));
-        pieces.push(Piece::new(0, 4, PieceType::King, PieceColor::White));
-        pieces.push(Piece::new(0, 5, PieceType::Bishop, PieceColor::White));
-        pieces.push(Piece::new(0, 6, PieceType::Knight, PieceColor::White));
-        pieces.push(Piece::new(0, 7, PieceType::Rook, PieceColor::White));
-
-        for file in 0..8 {
-            pieces.push(Piece::new(1, file, PieceType::Pawn, PieceColor::White));
-        }
-
-        for file in 0..8 {
-            pieces.push(Piece::new(6, file, PieceType::Pawn, PieceColor::Black));
-        }
-        pieces.push(Piece::new(7, 0, PieceType::Rook, PieceColor::Black));
-        pieces.push(Piece::new(7, 1, PieceType::Knight, PieceColor::Black));
-        pieces.push(Piece::new(7, 2, PieceType::Bishop, PieceColor::Black));
-        pieces.push(Piece::new(7, 3, PieceType::Queen, PieceColor::Black));
-        pieces.push(Piece::new(7, 4, PieceType::King, PieceColor::Black));
-        pieces.push(Piece::new(7, 5, PieceType::Bishop, PieceColor::Black));
-        pieces.push(Piece::new(7, 6, PieceType::Knight, PieceColor::Black));
-        pieces.push(Piece::new(7, 7, PieceType::Rook, PieceColor::Black));
-
-        pieces
     }
 
     impl fmt::Display for Board {
