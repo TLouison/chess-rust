@@ -48,7 +48,6 @@ pub mod piece {
     pub struct Piece {
         pub piece_type: PieceType,
         pub color: PieceColor,
-        pub alive: bool,
     }
 
     impl Piece {
@@ -56,7 +55,6 @@ pub mod piece {
             Piece {
                 piece_type: p_type,
                 color,
-                alive: true,
             }
         }
     }
@@ -75,7 +73,6 @@ pub mod piece {
             f.debug_struct("Piece")
                 .field("Type", &self.piece_type)
                 .field("Color", &self.color)
-                .field("Alive", &self.alive)
                 .finish()
         }
     }
