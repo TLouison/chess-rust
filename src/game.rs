@@ -106,10 +106,16 @@ pub mod board {
             }
         }
 
-        fn update(self, board: Vec<Option<Piece>>, move_list: Vec<Move>) -> Board {
+        fn update(
+            self,
+            board: Vec<Option<Piece>>,
+            move_list: Vec<Move>,
+            graveyard: Vec<Piece>,
+        ) -> Board {
             Board {
                 board,
                 move_list,
+                graveyard,
                 current_turn: self.current_turn.flip(),
                 ..self
             }
@@ -163,14 +169,6 @@ pub mod board {
 
         pub fn move_piece(mut self, new_move: Move) -> Board {
             let selected_piece = new_move.piece;
-            if self.current_turn != selected_piece.color {
-                println!(
-                    "You cannot move that piece, it is currently {}'s turn.",
-                    self.current_turn
-                );
-                return self;
-            }
-            println!("Attempting to move piece {selected_piece:?}");
             let is_valid_move = move_checker::is_valid_move(
                 &self,
                 &selected_piece,
@@ -178,16 +176,23 @@ pub mod board {
                 &new_move.end_pos,
             );
             match is_valid_move {
-                Ok(()) => {
+                Ok(capturing_move) => {
                     let new_move_list = self.record_move(&new_move);
                     let mut new_board = self.board.clone();
+                    let mut new_graveyard = self.graveyard.clone();
 
                     let start_board_idx = self.get_board_index_from_loc(new_move.start_pos);
                     let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
+
+                    if capturing_move {
+                        // If it was a capturing move, we already confirmed a piece exists at end_board_idx,
+                        // so unwrap should be safe.
+                        new_graveyard.push(new_board[end_board_idx].unwrap().clone());
+                    }
                     new_board[end_board_idx] = new_board[start_board_idx];
                     new_board[start_board_idx] = None;
 
-                    return self.update(new_board, new_move_list);
+                    return self.update(new_board, new_move_list, new_graveyard);
                 }
                 Err(error) => {
                     println!("{}", error);
@@ -230,7 +235,11 @@ pub mod board {
                 output.push('\n')
             }
 
-            write!(f, "{}", output)
+            write!(
+                f,
+                "{}\n\n{:?}\n{:?}",
+                output, self.move_list, self.graveyard
+            )
         }
     }
 }
@@ -261,6 +270,7 @@ pub mod moves {
         use core::fmt;
 
         pub enum MoveError {
+            WrongColorPiece,
             RankDifferenceGreater,
             FileDifferenceGreater,
             MoveOutOfBounds,
@@ -268,6 +278,7 @@ pub mod moves {
             NoPositionChange,
             OccupiedBySameColor,
             PawnMustMoveForward,
+            PawnMustCaptureDiagonal,
             KnightInvalidMove,
             RookMustMoveCardinal,
             BishopMustMoveDiagonal,
@@ -277,18 +288,20 @@ pub mod moves {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
                 let output;
                 match *self {
-                    MoveError::RankDifferenceGreater => output = "Piece attempted to move too many ranks at once",
-                    MoveError::FileDifferenceGreater => output = "Piece attempted to move too many files at once",
-                    MoveError::MoveOutOfBounds => output = "Piece attempted to move out of bounds",
-                    MoveError::MoveNotStraightLine => output = "Piece attempted to move to an invalid square",
-                    MoveError::NoPositionChange => output = "A piece cannot be moved to the square it already occupies",
-                    MoveError::OccupiedBySameColor => output = "A piece cannot be moved to a square that is occupied by a piece of the same color",
-                    MoveError::PawnMustMoveForward => output = "Pawns can only move forward",
-                    MoveError::KnightInvalidMove => output = "Knights may only move two squares in one cardinal direction, and one square in a perpendicular direction",
-                    MoveError::RookMustMoveCardinal => output = "Rooks may only move horizontally or vertically",
-                    MoveError::BishopMustMoveDiagonal => output = "Bishops may only move diagonally",
+                    MoveError::WrongColorPiece => output = "It is not your turn to move.",
+                    MoveError::RankDifferenceGreater => output = "Piece attempted to move too many ranks at once.",
+                    MoveError::FileDifferenceGreater => output = "Piece attempted to move too many files at once.",
+                    MoveError::MoveOutOfBounds => output = "Piece attempted to move out of bounds.",
+                    MoveError::MoveNotStraightLine => output = "Piece attempted to move to an invalid square.",
+                    MoveError::NoPositionChange => output = "A piece cannot be moved to the square it already occupies.",
+                    MoveError::OccupiedBySameColor => output = "A piece cannot be moved to a square that is occupied by a piece of the same color.",
+                    MoveError::PawnMustMoveForward => output = "Pawns can only move forward.",
+                    MoveError::PawnMustCaptureDiagonal => output = "Pawns cannot capture pieces directly in front of them.",
+                    MoveError::KnightInvalidMove => output = "Knights may only move two squares in one cardinal direction, and one square in a perpendicular direction.",
+                    MoveError::RookMustMoveCardinal => output = "Rooks may only move horizontally or vertically.",
+                    MoveError::BishopMustMoveDiagonal => output = "Bishops may only move diagonally.",
                 }
-                write!(f, "{}", output)
+                write!(f, "Invalid Move: {}", output)
             }
         }
 
@@ -305,12 +318,26 @@ pub mod moves {
                 || (dest.file.abs_diff(start.file) == 1 && dest.rank.abs_diff(start.rank) == 2);
         }
 
+        /// Handles checking every type of piece to confirm that a proposed move is valid.
+        ///
+        /// If the move is valid, it will return Ok(bool), where the bool indicates whether
+        /// the move captured another piece (true) or not (false).
+        ///
+        /// If the move is invalid, it will return Err(MoveError), which can be a number of
+        /// possible errors that the move violates.
         pub fn is_valid_move(
             board: &Board,
             piece: &Piece,
             start: &PieceLoc,
             dest: &PieceLoc,
-        ) -> Result<(), MoveError> {
+        ) -> Result<bool, MoveError> {
+            // Confirm the correct color piece is being moved depending on whose turn it is
+            if board.current_turn != piece.color {
+                return Err(MoveError::WrongColorPiece);
+            }
+
+            // Confirm the player made a move within the board's limits, and that
+            // it could theoretically move a piece from it's starting square.
             if dest.file >= board.files || dest.rank >= board.ranks {
                 return Err(MoveError::MoveOutOfBounds);
             }
@@ -318,19 +345,16 @@ pub mod moves {
                 return Err(MoveError::NoPositionChange);
             }
 
+            // Check if there is a piece in the way, making this a capturing move
             let mut capturing_move = false;
             if let Some(existing_piece) = board.get_piece_at_location(*dest) {
                 if existing_piece.color == piece.color {
-                    println!(
-                        "Cannot move piece to location occupied by another one of your pieces."
-                    );
                     return Err(MoveError::OccupiedBySameColor);
                 } else {
                     capturing_move = true;
                 }
             }
 
-            // Logic for non-capturing move
             match piece.piece_type {
                 PieceType::Pawn => {
                     let max_diff = match start.rank {
@@ -349,7 +373,7 @@ pub mod moves {
                             if dest.rank <= start.rank {
                                 return Err(MoveError::PawnMustMoveForward);
                             }
-                            if dest.rank > start.rank && dest.rank > start.rank + max_diff {
+                            if dest.rank > start.rank + max_diff {
                                 return Err(MoveError::RankDifferenceGreater);
                             }
                         }
@@ -357,24 +381,22 @@ pub mod moves {
                             if dest.rank >= start.rank {
                                 return Err(MoveError::PawnMustMoveForward);
                             }
-                            if dest.rank < start.rank && dest.rank < start.rank - max_diff {
+                            if dest.rank < start.rank - max_diff {
                                 return Err(MoveError::RankDifferenceGreater);
                             }
                         }
                     }
 
                     if capturing_move {
-                        // Pawns can only capture adjacent files
-                        if dest.file.abs_diff(start.file) != 1 {
-                            return Err(MoveError::FileDifferenceGreater);
-                        }
-                        // Pawns can only capture by moving up one rank
-                        if dest.rank.abs_diff(start.rank) != 1 {
-                            return Err(MoveError::RankDifferenceGreater);
+                        // Pawns can only capture diagonally adjacent pieces
+                        if dest.file.abs_diff(start.file) != 1
+                            || dest.rank.abs_diff(start.rank) != 1
+                        {
+                            return Err(MoveError::PawnMustCaptureDiagonal);
                         }
                     }
 
-                    Ok(())
+                    Ok(capturing_move)
                 }
                 PieceType::King => {
                     if dest.file.abs_diff(start.file) > 1 {
@@ -382,33 +404,33 @@ pub mod moves {
                     } else if dest.rank.abs_diff(start.rank) > 1 {
                         Err(MoveError::FileDifferenceGreater)
                     } else {
-                        Ok(())
+                        Ok(capturing_move)
                     }
                 }
                 PieceType::Rook => {
                     if !is_cardinal_move(start, dest) {
                         Err(MoveError::RookMustMoveCardinal)
                     } else {
-                        Ok(())
+                        Ok(capturing_move)
                     }
                 }
                 PieceType::Bishop => {
                     if !is_diagonal_move(start, dest) {
                         Err(MoveError::BishopMustMoveDiagonal)
                     } else {
-                        Ok(())
+                        Ok(capturing_move)
                     }
                 }
                 PieceType::Queen => {
                     if !is_diagonal_move(start, dest) && !is_cardinal_move(start, dest) {
                         Err(MoveError::MoveNotStraightLine)
                     } else {
-                        Ok(())
+                        Ok(capturing_move)
                     }
                 }
                 PieceType::Knight => {
                     if is_knight_move(start, dest) {
-                        Ok(())
+                        Ok(capturing_move)
                     } else {
                         Err(MoveError::KnightInvalidMove)
                     }

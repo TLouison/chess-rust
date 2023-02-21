@@ -29,6 +29,7 @@ pub fn prompt_make_move(game: &Board) -> Option<Move> {
     if let Some(location) = prompt_location() {
         if let Some(piece) = game.get_piece_at_location(location) {
             println!("Piece found: {:?}", piece);
+
             if let Some(target_location) = prompt_location() {
                 println!("Target chosen.");
                 return Some(Move::new(piece, location, target_location));
