@@ -14,16 +14,12 @@ fn get_input(prompt: &str) -> io::Result<String> {
 
 fn prompt_location() -> Option<PieceLoc> {
     if let (Ok(rank), Ok(file)) = (
-        get_input("Enter piece rank (0-7): "),
-        get_input("Enter piece file (0-7): "),
+        get_input("Enter piece rank (1-8): "),
+        get_input("Enter piece file (1-8): "),
     ) {
-        let rank_int: u8 = rank.trim().to_string().parse().unwrap();
-        let file_int: u8 = file.trim().to_string().parse().unwrap();
-        println!("{rank_int},{file_int}");
-        return Some(PieceLoc {
-            rank: rank_int,
-            file: file_int,
-        });
+        let rank = (rank.trim().parse::<u8>().unwrap()) - 1;
+        let file = (file.trim().parse::<u8>().unwrap()) - 1;
+        return Some(PieceLoc { rank, file });
     }
     None
 }
