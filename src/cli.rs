@@ -1,4 +1,5 @@
-use crate::game::board::{Board, Move};
+use crate::game::board::Board;
+use crate::game::moves::Move;
 use crate::game::piece::PieceLoc;
 use std::io::{self, Write};
 
