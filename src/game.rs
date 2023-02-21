@@ -44,26 +44,17 @@ pub mod piece {
         }
     }
 
-    pub struct PieceResult {
-        pub piece: Piece,
-        pub index: usize,
-    }
-
     #[derive(Copy, Clone)]
     pub struct Piece {
-        pub pos: PieceLoc,
         pub piece_type: PieceType,
         pub color: PieceColor,
-        pub alive: bool,
     }
 
     impl Piece {
-        pub fn new(rank: u8, file: u8, p_type: PieceType, color: PieceColor) -> Piece {
+        pub fn new(p_type: PieceType, color: PieceColor) -> Piece {
             Piece {
-                pos: PieceLoc::new(rank, file),
                 piece_type: p_type,
                 color,
-                alive: true,
             }
         }
     }
@@ -80,10 +71,8 @@ pub mod piece {
     impl fmt::Debug for Piece {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("Piece")
-                .field("Position", &self.pos)
                 .field("Type", &self.piece_type)
                 .field("Color", &self.color)
-                .field("Alive", &self.alive)
                 .finish()
         }
     }
@@ -92,19 +81,19 @@ pub mod piece {
 pub mod board {
     use core::fmt;
 
-    use super::piece::{Piece, PieceColor, PieceLoc, PieceResult, PieceType};
+    use super::piece::{Piece, PieceColor, PieceLoc, PieceType};
 
     #[derive(Clone, Debug)]
     pub struct Move {
-        pub piece_idx: usize,
+        pub piece: Piece,
         pub start_pos: PieceLoc,
         pub end_pos: PieceLoc,
     }
 
     impl Move {
-        pub fn new(piece_idx: usize, start: PieceLoc, dest: PieceLoc) -> Move {
+        pub fn new(piece: Piece, start: PieceLoc, dest: PieceLoc) -> Move {
             Move {
-                piece_idx: piece_idx.clone(),
+                piece: piece.clone(),
                 start_pos: start.clone(),
                 end_pos: dest.clone(),
             }
@@ -117,7 +106,7 @@ pub mod board {
         files: u8,
         pub current_turn: PieceColor,
         pub move_list: Vec<Move>,
-        pub pieces: Vec<Piece>,
+        pub board: Vec<Option<Piece>>,
         pub graveyard: Vec<Piece>,
     }
 
@@ -128,63 +117,67 @@ pub mod board {
                 files: 8,
                 current_turn: PieceColor::White,
                 move_list: Vec::new(),
-                pieces: Board::generate_default_game_pieces(),
+                board: Board::generate_default_board(8, 8),
                 graveyard: Vec::new(),
             }
         }
 
-        fn update(self, pieces: Vec<Piece>, move_list: Vec<Move>) -> Board {
+        fn update(self, board: Vec<Option<Piece>>, move_list: Vec<Move>) -> Board {
             Board {
-                pieces,
+                board,
                 move_list,
                 current_turn: self.current_turn.flip(),
                 ..self
             }
         }
 
-        fn generate_default_game_pieces() -> Vec<Piece> {
-            let mut pieces = Vec::<Piece>::new();
+        fn generate_default_board(ranks: usize, files: usize) -> Vec<Option<Piece>> {
+            let mut board: Vec<Option<Piece>> = vec![None; ranks * files];
 
-            pieces.push(Piece::new(0, 0, PieceType::Rook, PieceColor::White));
-            pieces.push(Piece::new(0, 1, PieceType::Knight, PieceColor::White));
-            pieces.push(Piece::new(0, 2, PieceType::Bishop, PieceColor::White));
-            pieces.push(Piece::new(0, 3, PieceType::Queen, PieceColor::White));
-            pieces.push(Piece::new(0, 4, PieceType::King, PieceColor::White));
-            pieces.push(Piece::new(0, 5, PieceType::Bishop, PieceColor::White));
-            pieces.push(Piece::new(0, 6, PieceType::Knight, PieceColor::White));
-            pieces.push(Piece::new(0, 7, PieceType::Rook, PieceColor::White));
+            // Generate White Pieces
+            board[0] = Some(Piece::new(PieceType::Rook, PieceColor::White));
+            board[1] = Some(Piece::new(PieceType::Knight, PieceColor::White));
+            board[2] = Some(Piece::new(PieceType::Bishop, PieceColor::White));
+            board[3] = Some(Piece::new(PieceType::Queen, PieceColor::White));
+            board[4] = Some(Piece::new(PieceType::King, PieceColor::White));
+            board[5] = Some(Piece::new(PieceType::Bishop, PieceColor::White));
+            board[6] = Some(Piece::new(PieceType::Knight, PieceColor::White));
+            board[7] = Some(Piece::new(PieceType::Rook, PieceColor::White));
 
+            // Generate White Pawns
             for file in 0..8 {
-                pieces.push(Piece::new(1, file, PieceType::Pawn, PieceColor::White));
+                board[8 + file] = Some(Piece::new(PieceType::Pawn, PieceColor::White));
             }
 
+            // Generate Black Pawns
             for file in 0..8 {
-                pieces.push(Piece::new(6, file, PieceType::Pawn, PieceColor::Black));
+                board[48 + file] = Some(Piece::new(PieceType::Pawn, PieceColor::Black));
             }
-            pieces.push(Piece::new(7, 0, PieceType::Rook, PieceColor::Black));
-            pieces.push(Piece::new(7, 1, PieceType::Knight, PieceColor::Black));
-            pieces.push(Piece::new(7, 2, PieceType::Bishop, PieceColor::Black));
-            pieces.push(Piece::new(7, 3, PieceType::Queen, PieceColor::Black));
-            pieces.push(Piece::new(7, 4, PieceType::King, PieceColor::Black));
-            pieces.push(Piece::new(7, 5, PieceType::Bishop, PieceColor::Black));
-            pieces.push(Piece::new(7, 6, PieceType::Knight, PieceColor::Black));
-            pieces.push(Piece::new(7, 7, PieceType::Rook, PieceColor::Black));
 
-            pieces
+            // Generate Black Piecces
+            board[56] = Some(Piece::new(PieceType::Rook, PieceColor::Black));
+            board[57] = Some(Piece::new(PieceType::Knight, PieceColor::Black));
+            board[58] = Some(Piece::new(PieceType::Bishop, PieceColor::Black));
+            board[59] = Some(Piece::new(PieceType::Queen, PieceColor::Black));
+            board[60] = Some(Piece::new(PieceType::King, PieceColor::Black));
+            board[61] = Some(Piece::new(PieceType::Bishop, PieceColor::Black));
+            board[62] = Some(Piece::new(PieceType::Knight, PieceColor::Black));
+            board[63] = Some(Piece::new(PieceType::Rook, PieceColor::Black));
+
+            board
         }
 
         fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
             let mut new_move_list = self.move_list.clone();
             new_move_list.push(Move {
-                piece_idx: new_move.piece_idx.clone(),
+                piece: new_move.piece.clone(),
                 start_pos: new_move.start_pos.clone(),
                 end_pos: new_move.end_pos.clone(),
             });
             new_move_list
         }
 
-        fn is_valid_move(&self, piece: &Piece, dest: &PieceLoc) -> bool {
-            let start = &piece.pos;
+        fn is_valid_move(&self, piece: &Piece, start: &PieceLoc, dest: &PieceLoc) -> bool {
             if dest.file >= self.files
                 || dest.rank >= self.ranks
                 || (dest.rank == start.rank && dest.file == start.file)
@@ -192,8 +185,8 @@ pub mod board {
                 return false;
             }
 
-            if let Some(existing_piece) = self.piece_exists_at_location(*dest) {
-                if existing_piece.piece.color == piece.color {
+            if let Some(existing_piece) = self.get_piece_at_location(*dest) {
+                if existing_piece.color == piece.color {
                     println!(
                         "Cannot move piece to location occupied by another one of your pieces."
                     );
@@ -242,8 +235,7 @@ pub mod board {
         }
 
         pub fn move_piece(mut self, new_move: Move) -> Board {
-            let selected_piece = self.pieces[new_move.piece_idx];
-
+            let selected_piece = new_move.piece;
             if self.current_turn != selected_piece.color {
                 println!(
                     "You cannot move that piece, it is currently {}'s turn.",
@@ -252,58 +244,52 @@ pub mod board {
                 return self;
             }
             println!("Attempting to move piece {selected_piece:?}");
-            if self.is_valid_move(&selected_piece, &new_move.end_pos) {
+            if self.is_valid_move(&selected_piece, &new_move.start_pos, &new_move.end_pos) {
                 let new_move_list = self.record_move(&new_move);
-                let mut new_pieces = self.pieces.clone();
-                new_pieces[new_move.piece_idx].pos = new_move.end_pos;
-                return self.update(new_pieces, new_move_list);
+                let mut new_board = self.board.clone();
+
+                let start_board_idx = self.get_board_index_from_loc(new_move.start_pos);
+                let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
+                new_board[end_board_idx] = new_board[start_board_idx];
+                new_board[start_board_idx] = None;
+
+                return self.update(new_board, new_move_list);
             }
             self
         }
 
-        // Takes in a piece location and optionally returns the piece's index if exists
-        pub fn piece_exists_at_location(&self, loc: PieceLoc) -> Option<PieceResult> {
-            if let Some(piece_idx) = self.get_piece_index_by_loc(loc) {
-                Some(PieceResult {
-                    piece: self.pieces[piece_idx],
-                    index: piece_idx,
-                })
-            } else {
-                None
-            }
+        pub fn get_piece_at_location(&self, loc: PieceLoc) -> Option<Piece> {
+            let board_index = self.get_board_index_from_loc(loc);
+            self.board[board_index]
         }
 
-        fn get_piece_index_by_loc(&self, loc: PieceLoc) -> Option<usize> {
-            self.pieces.iter().position(|piece| piece.pos == loc)
+        fn get_board_index_from_loc(&self, loc: PieceLoc) -> usize {
+            ((loc.rank * self.ranks) + loc.file).into()
         }
     }
 
     impl fmt::Display for Board {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let mut chessboard = vec!['.'; (self.ranks * self.files) as usize];
-            for piece in &self.pieces {
-                let (x, y) = (piece.pos.rank as usize, piece.pos.file as usize);
-
-                let display_char;
-                match piece.piece_type {
-                    PieceType::Pawn => display_char = 'P',
-                    PieceType::Knight => display_char = 'N',
-                    PieceType::Bishop => display_char = 'B',
-                    PieceType::Rook => display_char = 'R',
-                    PieceType::Queen => display_char = 'Q',
-                    PieceType::King => display_char = 'K',
-                }
-
-                chessboard[(x * (self.ranks as usize)) + y] = display_char;
-            }
-
             let mut output: String = "".to_string();
-            for rank in chessboard.chunks(self.ranks.into()).rev() {
-                for square in 0..self.files as usize {
-                    output.push(rank[square]);
+            for rank in self.board.chunks(self.ranks.into()).rev() {
+                for square in rank {
+                    let display_char;
+                    match square {
+                        Some(piece) => match piece.piece_type {
+                            PieceType::Pawn => display_char = 'P',
+                            PieceType::Knight => display_char = 'N',
+                            PieceType::Bishop => display_char = 'B',
+                            PieceType::Rook => display_char = 'R',
+                            PieceType::Queen => display_char = 'Q',
+                            PieceType::King => display_char = 'K',
+                        },
+                        None => display_char = '.',
+                    }
+
+                    output.push(display_char);
                     output.push(' ');
                 }
-                output.push('\n');
+                output.push('\n')
             }
 
             write!(f, "{}", output)
