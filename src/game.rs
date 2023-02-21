@@ -252,6 +252,7 @@ pub mod board {
                 let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
                 new_board[end_board_idx] = new_board[start_board_idx];
                 new_board[start_board_idx] = None;
+
                 return self.update(new_board, new_move_list);
             }
             self
