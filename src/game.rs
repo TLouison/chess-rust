@@ -123,7 +123,7 @@ pub mod board {
         pub current_turn: PieceColor,
         pub move_list: Vec<Move>,
         pub board: Vec<Option<Piece>>,
-        pub graveyard: HashMap::<PieceColor, HashMap<PieceType, u8>>,
+        pub graveyard: HashMap<PieceColor, HashMap<PieceType, u8>>,
     }
 
     impl Board {
@@ -142,7 +142,7 @@ pub mod board {
             self,
             board: Vec<Option<Piece>>,
             move_list: Vec<Move>,
-            graveyard: HashMap::<PieceColor, HashMap<PieceType, u8>>,
+            graveyard: HashMap<PieceColor, HashMap<PieceType, u8>>,
         ) -> Board {
             Board {
                 board,
@@ -189,25 +189,31 @@ pub mod board {
             board
         }
 
-        fn generate_empty_graveyard() -> HashMap::<PieceColor, HashMap<PieceType, u8>> {
+        fn generate_empty_graveyard() -> HashMap<PieceColor, HashMap<PieceType, u8>> {
             HashMap::from([
-                (PieceColor::White, HashMap::from([
-                    (PieceType::Pawn, 0),
-                    (PieceType::Knight, 0),
-                    (PieceType::Bishop, 0),
-                    (PieceType::Rook, 0),
-                    (PieceType::Queen, 0),
-                ])),
-                (PieceColor::Black, HashMap::from([
-                    (PieceType::Pawn, 0),
-                    (PieceType::Knight, 0),
-                    (PieceType::Bishop, 0),
-                    (PieceType::Rook, 0),
-                    (PieceType::Queen, 0),
-                ]))
+                (
+                    PieceColor::White,
+                    HashMap::from([
+                        (PieceType::Pawn, 0),
+                        (PieceType::Knight, 0),
+                        (PieceType::Bishop, 0),
+                        (PieceType::Rook, 0),
+                        (PieceType::Queen, 0),
+                    ]),
+                ),
+                (
+                    PieceColor::Black,
+                    HashMap::from([
+                        (PieceType::Pawn, 0),
+                        (PieceType::Knight, 0),
+                        (PieceType::Bishop, 0),
+                        (PieceType::Rook, 0),
+                        (PieceType::Queen, 0),
+                    ]),
+                ),
             ])
         }
-  
+
         fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
             let mut new_move_list = self.move_list.clone();
             new_move_list.push(Move {
@@ -237,8 +243,11 @@ pub mod board {
 
                     if capturing_move {
                         if let Some(captured_piece) = new_board[end_board_idx] {
-                            let color_grave = new_graveyard.get_mut(&captured_piece.color).expect("Didn't find color in graveyard");
-                            let piece_grave = color_grave.entry(captured_piece.piece_type).or_insert(1);
+                            let color_grave = new_graveyard
+                                .get_mut(&captured_piece.color)
+                                .expect("Didn't find color in graveyard");
+                            let piece_grave =
+                                color_grave.entry(captured_piece.piece_type).or_insert(1);
                             *piece_grave += 1;
                         }
                     }
@@ -264,11 +273,19 @@ pub mod board {
 
         fn get_graveyard_display(&self) -> String {
             let mut output: String = String::from("Graveyard:");
-            let grave_counts = ;
-                < self.graveyard.iter().for_each(|piece| {
-                    output.push('\n');
-                    output.push_str(format!("{}", piece).as_str());
-                });
+            for (color, piece_type) in &self.graveyard {
+                output.push_str(format!("\n\t{color} pieces:").as_str());
+                let mut found_captured_of_color = false;
+                for (p_type, &captured) in piece_type {
+                    if captured > 0 {
+                        output.push_str(format!("\n\t\t{}x {}", captured, p_type).as_str());
+                        found_captured_of_color = true;
+                    }
+                }
+                if !found_captured_of_color {
+                    output.push_str("\n\t\tNo pieces have been captured yet.");
+                }
+            }
             output
         }
 
