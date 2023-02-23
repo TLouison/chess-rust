@@ -4,7 +4,7 @@ pub mod piece {
     pub mod piece_info {
         use std::fmt;
 
-        #[derive(Copy, Debug, Clone)]
+        #[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
         pub enum PieceType {
             Pawn,
             Knight,
@@ -20,7 +20,7 @@ pub mod piece {
             }
         }
 
-        #[derive(Copy, Debug, Clone, PartialEq)]
+        #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq)]
         pub enum PieceColor {
             Black,
             White,
@@ -105,6 +105,7 @@ pub mod piece {
 
 pub mod board {
     use core::fmt;
+    use std::collections::HashMap;
 
     use crate::game::moves::{move_checker, Move};
     use crate::game::piece::{
@@ -122,7 +123,7 @@ pub mod board {
         pub current_turn: PieceColor,
         pub move_list: Vec<Move>,
         pub board: Vec<Option<Piece>>,
-        pub graveyard: Vec<Piece>,
+        pub graveyard: HashMap::<PieceColor, HashMap<PieceType, u8>>,
     }
 
     impl Board {
@@ -133,7 +134,7 @@ pub mod board {
                 current_turn: PieceColor::White,
                 move_list: Vec::new(),
                 board: Board::generate_default_board(8, 8),
-                graveyard: Vec::new(),
+                graveyard: Board::generate_empty_graveyard(),
             }
         }
 
@@ -141,7 +142,7 @@ pub mod board {
             self,
             board: Vec<Option<Piece>>,
             move_list: Vec<Move>,
-            graveyard: Vec<Piece>,
+            graveyard: HashMap::<PieceColor, HashMap<PieceType, u8>>,
         ) -> Board {
             Board {
                 board,
@@ -188,6 +189,25 @@ pub mod board {
             board
         }
 
+        fn generate_empty_graveyard() -> HashMap::<PieceColor, HashMap<PieceType, u8>> {
+            HashMap::from([
+                (PieceColor::White, HashMap::from([
+                    (PieceType::Pawn, 0),
+                    (PieceType::Knight, 0),
+                    (PieceType::Bishop, 0),
+                    (PieceType::Rook, 0),
+                    (PieceType::Queen, 0),
+                ])),
+                (PieceColor::Black, HashMap::from([
+                    (PieceType::Pawn, 0),
+                    (PieceType::Knight, 0),
+                    (PieceType::Bishop, 0),
+                    (PieceType::Rook, 0),
+                    (PieceType::Queen, 0),
+                ]))
+            ])
+        }
+  
         fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
             let mut new_move_list = self.move_list.clone();
             new_move_list.push(Move {
@@ -216,9 +236,11 @@ pub mod board {
                     let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
 
                     if capturing_move {
-                        // If it was a capturing move, we already confirmed a piece exists at end_board_idx,
-                        // so unwrap should be safe.
-                        new_graveyard.push(new_board[end_board_idx].unwrap().clone());
+                        if let Some(captured_piece) = new_board[end_board_idx] {
+                            let color_grave = new_graveyard.get_mut(&captured_piece.color).expect("Didn't find color in graveyard");
+                            let piece_grave = color_grave.entry(captured_piece.piece_type).or_insert(1);
+                            *piece_grave += 1;
+                        }
                     }
                     new_board[end_board_idx] = new_board[start_board_idx];
                     new_board[start_board_idx] = None;
@@ -242,10 +264,11 @@ pub mod board {
 
         fn get_graveyard_display(&self) -> String {
             let mut output: String = String::from("Graveyard:");
-            self.graveyard.iter().for_each(|piece| {
-                output.push('\n');
-                output.push_str(format!("{}", piece).as_str());
-            });
+            let grave_counts = ;
+                < self.graveyard.iter().for_each(|piece| {
+                    output.push('\n');
+                    output.push_str(format!("{}", piece).as_str());
+                });
             output
         }
 
