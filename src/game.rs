@@ -4,6 +4,8 @@ pub mod piece {
     pub mod piece_info {
         use std::fmt;
 
+        use crate::game::board::board_display;
+
         #[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
         pub enum PieceType {
             Pawn,
@@ -50,6 +52,27 @@ pub mod piece {
         impl PieceLoc {
             pub fn new(rank: u8, file: u8) -> PieceLoc {
                 PieceLoc { rank, file }
+            }
+
+            pub fn from_notation(notation: &str) -> Option<PieceLoc> {
+                if notation.len() != 2 {
+                    println!("Wrong number of chars");
+                    return None;
+                }
+
+                let mut chars = notation.chars();
+                if let (Some(file), Some(rank)) = (
+                    board_display::convert_rank_alpha_to_numeric(chars.next()?),
+                    chars.next()?.to_digit(10),
+                ) {
+                    let rank = (rank as u8) - 1;
+                    if PieceLoc::is_valid(rank, file) {
+                        return Some(PieceLoc::new(rank, file));
+                    }
+                    println!("Got invalid location");
+                }
+                println!("Couldn't convert input to PieceLoc");
+                None
             }
 
             pub fn is_valid(rank: u8, file: u8) -> bool {
@@ -375,9 +398,22 @@ pub mod board {
             }
         }
 
+        pub fn convert_rank_alpha_to_numeric(rank: char) -> Option<u8> {
+            let rank = rank.clone().to_ascii_uppercase();
+
+            if ALPHA_RANKS_UPPER.contains(&rank) {
+                match ALPHA_RANKS_UPPER.iter().position(|c| c == &rank) {
+                    Some(i) => return Some(i as u8),
+                    None => return None,
+                };
+            }
+            None
+        }
+
         pub fn convert_rank_numeric_to_alpha(rank: u8) -> Option<char> {
-            if usize::from(rank) < ALPHA_RANKS_UPPER.len() {
-                ALPHA_RANKS_UPPER.get(rank as usize).copied()
+            let rank = usize::from(rank);
+            if rank < ALPHA_RANKS_UPPER.len() {
+                ALPHA_RANKS_UPPER.get(rank).copied()
             } else {
                 None
             }
@@ -409,9 +445,9 @@ pub mod moves {
             format!(
                 "{}{}{}",
                 board::board_display::get_piece_display(&self.piece, true),
-                board::board_display::convert_rank_numeric_to_alpha(self.end_pos.rank)
-                    .expect("Somehow converted a rank > 7"),
-                self.end_pos.file + 1
+                board::board_display::convert_rank_numeric_to_alpha(self.end_pos.file)
+                    .expect("Somehow converted a file > 7"),
+                self.end_pos.rank + 1
             )
         }
     }

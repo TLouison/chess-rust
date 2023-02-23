@@ -1,4 +1,4 @@
-use crate::game::board::Board;
+use crate::game::board::{board_display, Board};
 use crate::game::moves::Move;
 use crate::game::piece::piece_info::PieceLoc;
 use std::io::{self, Write};
@@ -14,21 +14,12 @@ fn get_input(prompt: &str) -> io::Result<String> {
 }
 
 fn prompt_location() -> Option<PieceLoc> {
-    if let (Ok(rank), Ok(file)) = (
-        get_input("Enter piece rank (1-8): "),
-        get_input("Enter piece file (1-8): "),
-    ) {
-        let rank = rank.trim().parse::<u8>();
-        let file = file.trim().parse::<u8>();
-
-        // If both values are valid u8's and within the board's size, return a valid location
-        if let (Some(rank), Some(file)) = (rank.ok(), file.ok()) {
-            if PieceLoc::is_valid(rank - 1, file - 1) {
-                return Some(PieceLoc::new(rank - 1, file - 1));
-            }
-        }
+    if let Ok(position) = get_input("Enter piece position (i.e. A1, E5): ") {
+        let position = position.trim();
+        let position = PieceLoc::from_notation(position);
+        return position;
     }
-    println!("Please enter a valid rank and file, from 1-8.");
+    println!("Please enter a valid rank and file, from A-H, 1-8.");
     None
 }
 
