@@ -1,6 +1,6 @@
 use crate::game::board::Board;
 use crate::game::moves::Move;
-use crate::game::piece::PieceLoc;
+use crate::game::piece::piece_info::PieceLoc;
 use std::io::{self, Write};
 
 fn get_input(prompt: &str) -> io::Result<String> {
@@ -23,7 +23,7 @@ fn prompt_location() -> Option<PieceLoc> {
 
         // If both values are valid u8's and within the board's size, return a valid location
         if let (Some(rank), Some(file)) = (rank.ok(), file.ok()) {
-            if PieceLoc::is_valid(rank, file) {
+            if PieceLoc::is_valid(rank - 1, file - 1) {
                 return Some(PieceLoc::new(rank - 1, file - 1));
             }
         }
