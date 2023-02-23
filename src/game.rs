@@ -274,7 +274,7 @@ pub mod board {
 
         fn get_piece_display(piece: &Piece) -> char {
             match piece.piece_type {
-                PieceType::Pawn => return 'P',
+                PieceType::Pawn => return ' ',
                 PieceType::Knight => return 'N',
                 PieceType::Bishop => return 'B',
                 PieceType::Rook => return 'R',
