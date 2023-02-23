@@ -113,9 +113,6 @@ pub mod board {
         Piece,
     };
 
-    // List of all valid alpha representation of ranks
-    static ALPHA_RANKS_UPPER: [char; 8] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-
     #[derive(Clone, Debug)]
     pub struct Board {
         pub ranks: u8,
@@ -270,14 +267,54 @@ pub mod board {
         fn get_board_index_from_loc(&self, loc: PieceLoc) -> usize {
             ((loc.rank * self.ranks) + loc.file).into()
         }
+    }
 
-        fn get_graveyard_display(&self) -> String {
+    impl fmt::Display for Board {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            let mut output: String = "".to_string();
+            for rank in self.board.chunks(self.ranks.into()).rev() {
+                for square in rank {
+                    let display_char;
+                    match square {
+                        Some(piece) => {
+                            display_char = board_display::get_piece_display(piece, false)
+                        }
+                        None => display_char = '.',
+                    }
+
+                    output.push(display_char);
+                    output.push(' ');
+                }
+                output.push('\n')
+            }
+
+            write!(
+                f,
+                "{}\n\n{}\n\n{}",
+                output,
+                board_display::get_movelist_display(self),
+                board_display::get_graveyard_display(self),
+            )
+        }
+    }
+
+    pub mod board_display {
+        // List of all valid alpha representation of ranks
+        static ALPHA_RANKS_UPPER: [char; 8] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+
+        use super::Board;
+        use crate::game::piece::{
+            piece_info::{PieceColor, PieceType},
+            Piece,
+        };
+
+        pub fn get_graveyard_display(board: &Board) -> String {
             let mut output: String = String::from("Graveyard:");
             let mut piece_display: [String; 2] = [
                 String::from("\n\tWhite pieces:"),
                 String::from("\n\tBlack pieces:"),
             ];
-            for (color, piece_type) in &self.graveyard {
+            for (color, piece_type) in &board.graveyard {
                 let display_index;
                 match color {
                     PieceColor::White => display_index = 0,
@@ -302,12 +339,12 @@ pub mod board {
             output
         }
 
-        fn get_movelist_display(&self) -> String {
+        pub fn get_movelist_display(board: &Board) -> String {
             let mut output: String = String::from("Moves:");
 
             let mut turn = 1;
             let mut white_turn: bool = true;
-            self.move_list.iter().for_each(|_move| {
+            board.move_list.iter().for_each(|_move| {
                 if white_turn {
                     output.push('\n');
                     output.push_str(format!("{}. ", turn).as_str());
@@ -316,22 +353,12 @@ pub mod board {
                     turn += 1;
                     white_turn = true;
                 }
-                output.push_str(format!("{} ", Board::get_move_display(&_move)).as_str());
+                output.push_str(format!("{} ", &_move.get_move_display()).as_str());
             });
             output
         }
 
-        fn get_move_display(m: &Move) -> String {
-            format!(
-                "{}{}{}",
-                Board::get_piece_display(&m.piece, true),
-                Board::convert_rank_numeric_to_alpha(m.end_pos.rank)
-                    .expect("Somehow converted a rank > 7"),
-                m.end_pos.file + 1
-            )
-        }
-
-        fn get_piece_display(piece: &Piece, pawn_blank: bool) -> char {
+        pub fn get_piece_display(piece: &Piece, pawn_blank: bool) -> char {
             match piece.piece_type {
                 PieceType::Pawn => {
                     if pawn_blank {
@@ -348,7 +375,7 @@ pub mod board {
             }
         }
 
-        fn convert_rank_numeric_to_alpha(rank: u8) -> Option<char> {
+        pub fn convert_rank_numeric_to_alpha(rank: u8) -> Option<char> {
             if usize::from(rank) < ALPHA_RANKS_UPPER.len() {
                 ALPHA_RANKS_UPPER.get(rank as usize).copied()
             } else {
@@ -356,36 +383,10 @@ pub mod board {
             }
         }
     }
-
-    impl fmt::Display for Board {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let mut output: String = "".to_string();
-            for rank in self.board.chunks(self.ranks.into()).rev() {
-                for square in rank {
-                    let display_char;
-                    match square {
-                        Some(piece) => display_char = Board::get_piece_display(piece, false),
-                        None => display_char = '.',
-                    }
-
-                    output.push(display_char);
-                    output.push(' ');
-                }
-                output.push('\n')
-            }
-
-            write!(
-                f,
-                "{}\n\n{}\n\n{}",
-                output,
-                self.get_movelist_display(),
-                self.get_graveyard_display()
-            )
-        }
-    }
 }
 
 pub mod moves {
+    use crate::game::board;
     use crate::game::piece::{piece_info::PieceLoc, Piece};
 
     #[derive(Clone, Debug)]
@@ -402,6 +403,16 @@ pub mod moves {
                 start_pos: start.clone(),
                 end_pos: dest.clone(),
             }
+        }
+
+        pub fn get_move_display(&self) -> String {
+            format!(
+                "{}{}{}",
+                board::board_display::get_piece_display(&self.piece, true),
+                board::board_display::convert_rank_numeric_to_alpha(self.end_pos.rank)
+                    .expect("Somehow converted a rank > 7"),
+                self.end_pos.file + 1
+            )
         }
     }
 
