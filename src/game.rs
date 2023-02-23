@@ -273,19 +273,32 @@ pub mod board {
 
         fn get_graveyard_display(&self) -> String {
             let mut output: String = String::from("Graveyard:");
+            let mut piece_display: [String; 2] = [
+                String::from("\n\tWhite pieces:"),
+                String::from("\n\tBlack pieces:"),
+            ];
             for (color, piece_type) in &self.graveyard {
-                output.push_str(format!("\n\t{color} pieces:").as_str());
+                let display_index;
+                match color {
+                    PieceColor::White => display_index = 0,
+                    PieceColor::Black => display_index = 1,
+                };
                 let mut found_captured_of_color = false;
                 for (p_type, &captured) in piece_type {
                     if captured > 0 {
-                        output.push_str(format!("\n\t\t{}x {}", captured, p_type).as_str());
+                        piece_display[display_index]
+                            .push_str(format!("\n\t\t{}x {}", captured, p_type).as_str());
                         found_captured_of_color = true;
                     }
                 }
                 if !found_captured_of_color {
-                    output.push_str("\n\t\tNo pieces have been captured yet.");
+                    piece_display[display_index]
+                        .push_str("\n\t\tNo pieces have been captured yet.");
                 }
             }
+            piece_display.iter().for_each(|color| {
+                output.push_str(color.as_str());
+            });
             output
         }
 
