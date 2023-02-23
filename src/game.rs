@@ -42,6 +42,15 @@ pub mod piece {
         pub fn new(rank: u8, file: u8) -> PieceLoc {
             PieceLoc { rank, file }
         }
+
+        pub fn is_valid(rank: u8, file: u8) -> bool {
+            // If both values are valid u8's and within the board's size, return a valid location
+            if rank <= 7 && file <= 7 {
+                true
+            } else {
+                false
+            }
+        }
     }
 
     #[derive(Copy, Clone)]

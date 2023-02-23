@@ -18,10 +18,17 @@ fn prompt_location() -> Option<PieceLoc> {
         get_input("Enter piece rank (1-8): "),
         get_input("Enter piece file (1-8): "),
     ) {
-        let rank = (rank.trim().parse::<u8>().unwrap()) - 1;
-        let file = (file.trim().parse::<u8>().unwrap()) - 1;
-        return Some(PieceLoc::new(rank, file));
+        let rank = rank.trim().parse::<u8>();
+        let file = file.trim().parse::<u8>();
+
+        // If both values are valid u8's and within the board's size, return a valid location
+        if let (Some(rank), Some(file)) = (rank.ok(), file.ok()) {
+            if PieceLoc::is_valid(rank, file) {
+                return Some(PieceLoc::new(rank - 1, file - 1));
+            }
+        }
     }
+    println!("Please enter a valid rank and file, from 1-8.");
     None
 }
 
