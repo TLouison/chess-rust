@@ -1,66 +1,85 @@
 pub mod piece {
     use std::fmt;
 
-    #[derive(Copy, Debug, Clone)]
-    pub enum PieceType {
-        Pawn,
-        Knight,
-        Bishop,
-        Rook,
-        Queen,
-        King,
-    }
+    pub mod piece_info {
+        use std::fmt;
 
-    #[derive(Copy, Debug, Clone, PartialEq)]
-    pub enum PieceColor {
-        Black,
-        White,
-    }
+        #[derive(Copy, Debug, Clone, Hash, Eq, PartialEq)]
+        pub enum PieceType {
+            Pawn,
+            Knight,
+            Bishop,
+            Rook,
+            Queen,
+            King,
+        }
 
-    impl PieceColor {
-        pub fn flip(self) -> PieceColor {
-            match self {
-                Self::Black => Self::White,
-                Self::White => Self::Black,
+        impl fmt::Display for PieceType {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{:?}", self)
             }
         }
-    }
 
-    impl fmt::Display for PieceColor {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            write!(f, "{:?}", self)
-        }
-    }
-
-    #[derive(Copy, Clone, PartialEq)]
-    pub struct PieceLoc {
-        pub rank: u8,
-        pub file: u8,
-    }
-
-    impl PieceLoc {
-        pub fn new(rank: u8, file: u8) -> PieceLoc {
-            PieceLoc { rank, file }
+        #[derive(Copy, Debug, Clone, Eq, Hash, PartialEq)]
+        pub enum PieceColor {
+            Black,
+            White,
         }
 
-        pub fn is_valid(rank: u8, file: u8) -> bool {
-            // If both values are valid u8's and within the board's size, return a valid location
-            if rank <= 7 && file <= 7 {
-                true
-            } else {
-                false
+        impl PieceColor {
+            pub fn flip(self) -> PieceColor {
+                match self {
+                    Self::Black => Self::White,
+                    Self::White => Self::Black,
+                }
+            }
+        }
+
+        impl fmt::Display for PieceColor {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "{:?}", self)
+            }
+        }
+
+        #[derive(Copy, Clone, PartialEq)]
+        pub struct PieceLoc {
+            pub rank: u8,
+            pub file: u8,
+        }
+
+        impl PieceLoc {
+            pub fn new(rank: u8, file: u8) -> PieceLoc {
+                PieceLoc { rank, file }
+            }
+
+            pub fn is_valid(rank: u8, file: u8) -> bool {
+                // If both values are valid u8's and within the board's size, return a valid location
+                if rank <= 7 && file <= 7 {
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+
+        impl fmt::Debug for PieceLoc {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.debug_struct("Position")
+                    .field("Rank", &self.rank)
+                    .field("File", &self.file)
+                    .finish()
             }
         }
     }
 
     #[derive(Copy, Clone)]
     pub struct Piece {
-        pub piece_type: PieceType,
-        pub color: PieceColor,
+        pub piece_type: piece_info::PieceType,
+        pub color: piece_info::PieceColor,
     }
 
     impl Piece {
-        pub fn new(p_type: PieceType, color: PieceColor) -> Piece {
+        pub fn new(p_type: piece_info::PieceType, color: piece_info::PieceColor) -> Piece {
             Piece {
                 piece_type: p_type,
                 color,
@@ -68,12 +87,9 @@ pub mod piece {
         }
     }
 
-    impl fmt::Debug for PieceLoc {
+    impl fmt::Display for Piece {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            f.debug_struct("Position")
-                .field("Rank", &self.rank)
-                .field("File", &self.file)
-                .finish()
+            write!(f, "{} {}", self.color, self.piece_type)
         }
     }
 
@@ -89,9 +105,16 @@ pub mod piece {
 
 pub mod board {
     use core::fmt;
+    use std::collections::HashMap;
 
     use crate::game::moves::{move_checker, Move};
-    use crate::game::piece::{Piece, PieceColor, PieceLoc, PieceType};
+    use crate::game::piece::{
+        piece_info::{PieceColor, PieceLoc, PieceType},
+        Piece,
+    };
+
+    // List of all valid alpha representation of ranks
+    static ALPHA_RANKS_UPPER: [char; 8] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
     #[derive(Clone, Debug)]
     pub struct Board {
@@ -100,7 +123,7 @@ pub mod board {
         pub current_turn: PieceColor,
         pub move_list: Vec<Move>,
         pub board: Vec<Option<Piece>>,
-        pub graveyard: Vec<Piece>,
+        pub graveyard: HashMap<PieceColor, HashMap<PieceType, u8>>,
     }
 
     impl Board {
@@ -111,7 +134,7 @@ pub mod board {
                 current_turn: PieceColor::White,
                 move_list: Vec::new(),
                 board: Board::generate_default_board(8, 8),
-                graveyard: Vec::new(),
+                graveyard: Board::generate_empty_graveyard(),
             }
         }
 
@@ -119,7 +142,7 @@ pub mod board {
             self,
             board: Vec<Option<Piece>>,
             move_list: Vec<Move>,
-            graveyard: Vec<Piece>,
+            graveyard: HashMap<PieceColor, HashMap<PieceType, u8>>,
         ) -> Board {
             Board {
                 board,
@@ -166,6 +189,31 @@ pub mod board {
             board
         }
 
+        fn generate_empty_graveyard() -> HashMap<PieceColor, HashMap<PieceType, u8>> {
+            HashMap::from([
+                (
+                    PieceColor::White,
+                    HashMap::from([
+                        (PieceType::Pawn, 0),
+                        (PieceType::Knight, 0),
+                        (PieceType::Bishop, 0),
+                        (PieceType::Rook, 0),
+                        (PieceType::Queen, 0),
+                    ]),
+                ),
+                (
+                    PieceColor::Black,
+                    HashMap::from([
+                        (PieceType::Pawn, 0),
+                        (PieceType::Knight, 0),
+                        (PieceType::Bishop, 0),
+                        (PieceType::Rook, 0),
+                        (PieceType::Queen, 0),
+                    ]),
+                ),
+            ])
+        }
+
         fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
             let mut new_move_list = self.move_list.clone();
             new_move_list.push(Move {
@@ -194,13 +242,17 @@ pub mod board {
                     let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
 
                     if capturing_move {
-                        // If it was a capturing move, we already confirmed a piece exists at end_board_idx,
-                        // so unwrap should be safe.
-                        new_graveyard.push(new_board[end_board_idx].unwrap().clone());
+                        if let Some(captured_piece) = new_board[end_board_idx] {
+                            let color_grave = new_graveyard
+                                .get_mut(&captured_piece.color)
+                                .expect("Didn't find color in graveyard");
+                            let piece_grave =
+                                color_grave.entry(captured_piece.piece_type).or_insert(1);
+                            *piece_grave += 1;
+                        }
                     }
                     new_board[end_board_idx] = new_board[start_board_idx];
                     new_board[start_board_idx] = None;
-
                     return self.update(new_board, new_move_list, new_graveyard);
                 }
                 Err(error) => {
@@ -212,11 +264,96 @@ pub mod board {
 
         pub fn get_piece_at_location(&self, loc: PieceLoc) -> Option<Piece> {
             let board_index = self.get_board_index_from_loc(loc);
-            self.board[board_index]
+            self.board.get(board_index).copied().unwrap_or_else(|| None)
         }
 
         fn get_board_index_from_loc(&self, loc: PieceLoc) -> usize {
             ((loc.rank * self.ranks) + loc.file).into()
+        }
+
+        fn get_graveyard_display(&self) -> String {
+            let mut output: String = String::from("Graveyard:");
+            let mut piece_display: [String; 2] = [
+                String::from("\n\tWhite pieces:"),
+                String::from("\n\tBlack pieces:"),
+            ];
+            for (color, piece_type) in &self.graveyard {
+                let display_index;
+                match color {
+                    PieceColor::White => display_index = 0,
+                    PieceColor::Black => display_index = 1,
+                };
+                let mut found_captured_of_color = false;
+                for (p_type, &captured) in piece_type {
+                    if captured > 0 {
+                        piece_display[display_index]
+                            .push_str(format!("\n\t\t{}x {}", captured, p_type).as_str());
+                        found_captured_of_color = true;
+                    }
+                }
+                if !found_captured_of_color {
+                    piece_display[display_index]
+                        .push_str("\n\t\tNo pieces have been captured yet.");
+                }
+            }
+            piece_display.iter().for_each(|color| {
+                output.push_str(color.as_str());
+            });
+            output
+        }
+
+        fn get_movelist_display(&self) -> String {
+            let mut output: String = String::from("Moves:");
+
+            let mut turn = 1;
+            let mut white_turn: bool = true;
+            self.move_list.iter().for_each(|_move| {
+                if white_turn {
+                    output.push('\n');
+                    output.push_str(format!("{}. ", turn).as_str());
+                    white_turn = false;
+                } else {
+                    turn += 1;
+                    white_turn = true;
+                }
+                output.push_str(format!("{} ", Board::get_move_display(&_move)).as_str());
+            });
+            output
+        }
+
+        fn get_move_display(m: &Move) -> String {
+            format!(
+                "{}{}{}",
+                Board::get_piece_display(&m.piece, true),
+                Board::convert_rank_numeric_to_alpha(m.end_pos.rank)
+                    .expect("Somehow converted a rank > 7"),
+                m.end_pos.file + 1
+            )
+        }
+
+        fn get_piece_display(piece: &Piece, pawn_blank: bool) -> char {
+            match piece.piece_type {
+                PieceType::Pawn => {
+                    if pawn_blank {
+                        return ' ';
+                    } else {
+                        return 'P';
+                    }
+                }
+                PieceType::Knight => return 'N',
+                PieceType::Bishop => return 'B',
+                PieceType::Rook => return 'R',
+                PieceType::Queen => return 'Q',
+                PieceType::King => return 'K',
+            }
+        }
+
+        fn convert_rank_numeric_to_alpha(rank: u8) -> Option<char> {
+            if usize::from(rank) < ALPHA_RANKS_UPPER.len() {
+                ALPHA_RANKS_UPPER.get(rank as usize).copied()
+            } else {
+                None
+            }
         }
     }
 
@@ -227,14 +364,7 @@ pub mod board {
                 for square in rank {
                     let display_char;
                     match square {
-                        Some(piece) => match piece.piece_type {
-                            PieceType::Pawn => display_char = 'P',
-                            PieceType::Knight => display_char = 'N',
-                            PieceType::Bishop => display_char = 'B',
-                            PieceType::Rook => display_char = 'R',
-                            PieceType::Queen => display_char = 'Q',
-                            PieceType::King => display_char = 'K',
-                        },
+                        Some(piece) => display_char = Board::get_piece_display(piece, false),
                         None => display_char = '.',
                     }
 
@@ -246,15 +376,17 @@ pub mod board {
 
             write!(
                 f,
-                "{}\n\n{:?}\n{:?}",
-                output, self.move_list, self.graveyard
+                "{}\n\n{}\n\n{}",
+                output,
+                self.get_movelist_display(),
+                self.get_graveyard_display()
             )
         }
     }
 }
 
 pub mod moves {
-    use crate::game::piece::{Piece, PieceLoc};
+    use crate::game::piece::{piece_info::PieceLoc, Piece};
 
     #[derive(Clone, Debug)]
     pub struct Move {
@@ -275,7 +407,10 @@ pub mod moves {
 
     pub mod move_checker {
         use crate::game::board::Board;
-        use crate::game::piece::{Piece, PieceColor, PieceLoc, PieceType};
+        use crate::game::piece::{
+            piece_info::{PieceColor, PieceLoc, PieceType},
+            Piece,
+        };
         use core::fmt;
 
         pub enum MoveError {
