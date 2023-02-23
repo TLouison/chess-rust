@@ -11,6 +11,12 @@ pub mod piece {
         King,
     }
 
+    impl fmt::Display for PieceType {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{}", self)
+        }
+    }
+
     #[derive(Copy, Debug, Clone, PartialEq)]
     pub enum PieceColor {
         Black,
@@ -68,6 +74,12 @@ pub mod piece {
         }
     }
 
+    impl fmt::Display for Piece {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{} {}", self.color, self.piece_type)
+        }
+    }
+
     impl fmt::Debug for PieceLoc {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             f.debug_struct("Position")
@@ -92,6 +104,9 @@ pub mod board {
 
     use crate::game::moves::{move_checker, Move};
     use crate::game::piece::{Piece, PieceColor, PieceLoc, PieceType};
+
+    // List of all valid alpha representation of ranks
+    static ALPHA_RANKS_UPPER: [char; 8] = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 
     #[derive(Clone, Debug)]
     pub struct Board {
@@ -218,6 +233,63 @@ pub mod board {
         fn get_board_index_from_loc(&self, loc: PieceLoc) -> usize {
             ((loc.rank * self.ranks) + loc.file).into()
         }
+
+        fn get_graveyard_display(&self) -> String {
+            let mut output: String = String::from("Graveyard:");
+            self.graveyard.iter().for_each(|piece| {
+                output.push('\n');
+                output.push_str(format!("{}", piece).as_str())
+            });
+            output
+        }
+
+        fn get_movelist_display(&self) -> String {
+            let mut output: String = String::from("Moves:");
+
+            let mut turn = 1;
+            let mut white_turn: bool = true;
+            self.move_list.iter().for_each(|_move| {
+                if white_turn {
+                    output.push('\n');
+                    output.push_str(format!("{}. ", turn).as_str());
+                    white_turn = false;
+                } else {
+                    turn += 1;
+                    white_turn = true;
+                }
+                output.push_str(format!("{} ", Board::get_move_display(&_move)).as_str());
+            });
+            output
+        }
+
+        fn get_move_display(m: &Move) -> String {
+            format!(
+                "{}{}{}",
+                Board::get_piece_display(&m.piece),
+                Board::convert_rank_numeric_to_alpha(m.end_pos.rank)
+                    .expect("Somehow converted a rank > 7"),
+                m.end_pos.file + 1
+            )
+        }
+
+        fn get_piece_display(piece: &Piece) -> char {
+            match piece.piece_type {
+                PieceType::Pawn => return 'P',
+                PieceType::Knight => return 'N',
+                PieceType::Bishop => return 'B',
+                PieceType::Rook => return 'R',
+                PieceType::Queen => return 'Q',
+                PieceType::King => return 'K',
+            }
+        }
+
+        fn convert_rank_numeric_to_alpha(rank: u8) -> Option<char> {
+            if usize::from(rank) < ALPHA_RANKS_UPPER.len() {
+                Some(ALPHA_RANKS_UPPER[rank as usize].clone())
+            } else {
+                None
+            }
+        }
     }
 
     impl fmt::Display for Board {
@@ -227,14 +299,7 @@ pub mod board {
                 for square in rank {
                     let display_char;
                     match square {
-                        Some(piece) => match piece.piece_type {
-                            PieceType::Pawn => display_char = 'P',
-                            PieceType::Knight => display_char = 'N',
-                            PieceType::Bishop => display_char = 'B',
-                            PieceType::Rook => display_char = 'R',
-                            PieceType::Queen => display_char = 'Q',
-                            PieceType::King => display_char = 'K',
-                        },
+                        Some(piece) => display_char = Board::get_piece_display(piece),
                         None => display_char = '.',
                     }
 
@@ -246,8 +311,10 @@ pub mod board {
 
             write!(
                 f,
-                "{}\n\n{:?}\n{:?}",
-                output, self.move_list, self.graveyard
+                "{}\n\n{}\n\n{}",
+                output,
+                self.get_movelist_display(),
+                self.get_graveyard_display()
             )
         }
     }
