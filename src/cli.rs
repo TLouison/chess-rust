@@ -20,7 +20,7 @@ fn prompt_location() -> Option<PieceLoc> {
     ) {
         let rank = (rank.trim().parse::<u8>().unwrap()) - 1;
         let file = (file.trim().parse::<u8>().unwrap()) - 1;
-        return Some(PieceLoc { rank, file });
+        return Some(PieceLoc::new(rank, file));
     }
     None
 }
