@@ -5,6 +5,7 @@ use crate::game::piece::{
 };
 use core::fmt;
 
+#[derive(Debug)]
 pub enum MoveError {
     WrongColorPiece,
     RankDifferenceGreater,
@@ -81,7 +82,7 @@ pub fn is_valid_move(
         return Err(MoveError::NoPositionChange);
     }
 
-    // Check if there is a piece in the way, making this a capturing move
+    // Check if there is a piece in the way, making this a capturing move (also check for en passant)
     let mut capturing_move = false;
     if let Some(existing_piece) = board.get_piece_at_location(*dest) {
         if existing_piece.color == piece.color {
@@ -177,8 +178,296 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_diagonal_move__happy_path() {
-        let result = is_diagonal_move(PieceLoc { rank: 0, file: 0 });
-        assert_eq!(result, 4);
+    fn test_minimal_diagonal_move_all_directions_return_true() {
+        assert_eq!(
+            true,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(2, 2))
+        );
+        assert_eq!(
+            true,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(2, 0))
+        );
+        assert_eq!(
+            true,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(0, 2))
+        );
+        assert_eq!(
+            true,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(0, 0))
+        );
+    }
+
+    #[test]
+    fn test_diagonal_move_all_cardinal_directions_return_false() {
+        assert_eq!(
+            false,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(2, 1))
+        );
+        assert_eq!(
+            false,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(1, 2))
+        );
+        assert_eq!(
+            false,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(0, 1))
+        );
+        assert_eq!(
+            false,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(1, 0))
+        );
+    }
+
+    #[test]
+    fn test_diagonal_move_bad_returns_false() {
+        // Knight move
+        assert_eq!(
+            false,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(3, 2))
+        );
+        // Completely bad move
+        assert_eq!(
+            false,
+            is_diagonal_move(&PieceLoc::new(1, 1), &PieceLoc::new(3, 7))
+        );
+    }
+
+    #[test]
+    fn test_minimal_cardinal_move_all_directions_return_true() {
+        assert_eq!(
+            true,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(2, 1))
+        );
+        assert_eq!(
+            true,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(1, 2))
+        );
+        assert_eq!(
+            true,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(0, 1))
+        );
+        assert_eq!(
+            true,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(1, 0))
+        );
+    }
+
+    #[test]
+    fn test_cardinal_move_all_diagonal_directions_return_false() {
+        assert_eq!(
+            false,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(2, 2))
+        );
+        assert_eq!(
+            false,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(0, 0))
+        );
+        assert_eq!(
+            false,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(2, 0))
+        );
+        assert_eq!(
+            false,
+            is_cardinal_move(&PieceLoc::new(1, 1), &PieceLoc::new(0, 2))
+        );
+    }
+
+    #[cfg(test)]
+    mod pawn_tests {
+        use crate::game::board::Board;
+        use crate::game::moves::Move;
+        use crate::game::piece::piece_info::{PieceLoc, PieceType};
+
+        fn setup_e4() -> Board {
+            let mut board = Board::new();
+            board.board[28] = board.board[12];
+            board.board[12] = None;
+            board
+        }
+
+        fn setup_e4_e5() -> Board {
+            let mut board = setup_e4();
+            board.board[36] = board.board[52];
+            board.board[52] = None;
+            board
+        }
+
+        fn setup_e4_d5() -> Board {
+            let mut board = setup_e4();
+            board.board[35] = board.board[51];
+            board.board[51] = None;
+            board
+        }
+
+        #[test]
+        fn test_valid_move_pawn_forward_one() {
+            let board = Board::new();
+            let piece = board.board[12].unwrap(); // E2
+
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 1, file: 5 };
+            let end_pos = PieceLoc { rank: 2, file: 5 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(true, verdict.is_ok());
+        }
+
+        #[test]
+        fn test_valid_move_pawn_forward_two() {
+            let board = Board::new();
+            let piece = board.board[12].unwrap(); // E2
+
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 1, file: 5 };
+            let end_pos = PieceLoc { rank: 3, file: 5 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(true, verdict.is_ok());
+        }
+
+        #[test]
+        fn test_valid_move_pawn_forward_one_after_already_moving() {
+            let board = setup_e4();
+            let piece = board.board[28].unwrap(); // E4
+
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 3, file: 5 };
+            let end_pos = PieceLoc { rank: 4, file: 5 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(true, verdict.is_ok());
+        }
+
+        #[test]
+        fn test_invalid_move_pawn_forward_two_after_already_moving() {
+            let board = setup_e4();
+            let piece = board.board[28].unwrap(); // E4
+
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 3, file: 4 };
+            let end_pos = PieceLoc { rank: 5, file: 4 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(false, verdict.is_ok());
+        }
+
+        #[test]
+        fn test_invalid_move_pawn_forward_piece_blocking() {
+            let board = setup_e4_e5();
+
+            let piece = board.board[28].unwrap(); // E4
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 3, file: 4 };
+            let end_pos = PieceLoc { rank: 4, file: 4 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(false, verdict.is_ok());
+        }
+
+        #[test]
+        fn test_invalid_move_pawn_backward() {
+            let board = setup_e4();
+            let piece = board.board[28].unwrap(); // E4
+
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 3, file: 4 };
+            let end_pos = PieceLoc { rank: 2, file: 4 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(false, verdict.is_ok());
+        }
+
+        #[test]
+        fn test_valid_move_capture_diagonally() {
+            let board = setup_e4_d5();
+            let piece = board.board[28].unwrap(); // E4
+
+            assert_eq!(piece.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 3, file: 4 };
+            let end_pos = PieceLoc { rank: 4, file: 3 };
+
+            let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
+
+            assert_eq!(true, verdict.is_ok());
+            assert_eq!(true, verdict.unwrap()); // Capture returns bool = true
+        }
+
+        #[test]
+        fn test_valid_move_en_passant() {
+            let mut board = setup_e4_d5();
+            let white_e_pawn = board.board[28].unwrap();
+            let black_f_pawn = board.board[53].unwrap();
+            board = board.move_piece(Move {
+                piece: white_e_pawn,
+                start_pos: PieceLoc { rank: 3, file: 4 },
+                end_pos: PieceLoc { rank: 4, file: 4 },
+            });
+            board = board.move_piece(Move {
+                piece: black_f_pawn,
+                start_pos: PieceLoc { rank: 6, file: 5 },
+                end_pos: PieceLoc { rank: 4, file: 5 },
+            });
+
+            // Can only en passant pawns
+            assert_eq!(white_e_pawn.piece_type, PieceType::Pawn);
+            assert_eq!(black_f_pawn.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 4, file: 4 };
+            let end_pos = PieceLoc { rank: 5, file: 5 };
+
+            let verdict = super::is_valid_move(&board, &white_e_pawn, &start_pos, &end_pos);
+            assert_eq!(true, verdict.is_ok());
+            assert_eq!(true, verdict.unwrap());
+        }
+
+        #[test]
+        fn test_invalid_move_en_passant_after_1_space_move() {
+            let mut board = setup_e4_d5();
+            let white_e_pawn = board.board[28].unwrap();
+            let black_f_pawn = board.board[53].unwrap();
+            let other_white_piece = board.board[8].unwrap();
+            board = board.move_piece(Move {
+                piece: white_e_pawn,
+                start_pos: PieceLoc { rank: 3, file: 4 },
+                end_pos: PieceLoc { rank: 4, file: 4 },
+            });
+            board = board.move_piece(Move {
+                piece: black_f_pawn,
+                start_pos: PieceLoc { rank: 6, file: 5 },
+                end_pos: PieceLoc { rank: 5, file: 5 },
+            });
+            board = board.move_piece(Move {
+                piece: other_white_piece,
+                start_pos: PieceLoc { rank: 1, file: 0 },
+                end_pos: PieceLoc { rank: 2, file: 0 },
+            });
+            board = board.move_piece(Move {
+                piece: black_f_pawn,
+                start_pos: PieceLoc { rank: 5, file: 5 },
+                end_pos: PieceLoc { rank: 4, file: 5 },
+            });
+
+            // Can only en passant pawns
+            assert_eq!(white_e_pawn.piece_type, PieceType::Pawn);
+            assert_eq!(black_f_pawn.piece_type, PieceType::Pawn);
+
+            let start_pos = PieceLoc { rank: 4, file: 4 };
+            let end_pos = PieceLoc { rank: 5, file: 5 };
+
+            let verdict = super::is_valid_move(&board, &white_e_pawn, &start_pos, &end_pos);
+            assert_eq!(false, verdict.is_ok());
+        }
     }
 }
