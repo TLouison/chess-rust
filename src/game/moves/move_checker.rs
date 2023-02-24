@@ -18,6 +18,7 @@ pub enum MoveError {
     OccupiedBySameColor,
     PawnMustMoveForward,
     PawnMustCaptureDiagonal,
+    PawnEnPassantNotValid,
     KnightInvalidMove,
     RookMustMoveCardinal,
     BishopMustMoveDiagonal,
@@ -36,6 +37,7 @@ impl fmt::Display for MoveError {
                     MoveError::OccupiedBySameColor => output = "A piece cannot be moved to a square that is occupied by a piece of the same color.",
                     MoveError::PawnMustMoveForward => output = "Pawns can only move forward.",
                     MoveError::PawnMustCaptureDiagonal => output = "Pawns cannot capture pieces directly in front of them.",
+                    MoveError::PawnEnPassantNotValid => output = "Conditions not met to perform en passant",
                     MoveError::KnightInvalidMove => output = "Knights may only move two squares in one cardinal direction, and one square in a perpendicular direction.",
                     MoveError::RookMustMoveCardinal => output = "Rooks may only move horizontally or vertically.",
                     MoveError::BishopMustMoveDiagonal => output = "Bishops may only move diagonally.",
@@ -85,12 +87,14 @@ pub fn is_valid_move(
     }
 
     // Check if there is a piece in the way, making this a capturing move
-    let mut capturing_move = CaptureResult::None;
+    let mut capturing_move = false;
+    let mut capture_type = CaptureResult::None;
     if let Some(existing_piece) = board.get_piece_at_location(*dest) {
         if existing_piece.color == piece.color {
             return Err(MoveError::OccupiedBySameColor);
         } else {
-            capturing_move = CaptureResult::Normal;
+            capturing_move = true;
+            capture_type = CaptureResult::Normal;
         }
     }
 
@@ -127,20 +131,42 @@ pub fn is_valid_move(
             }
 
             // Special case: check for en passant conditions
-            if let Some(last_move) = board.get_previous_move() {
-                if last_move.piece.piece_type == PieceType::Pawn {
-                    match last_move.piece.color {
-                        PieceColor::White => {
-                            if last_move.start_pos.rank == 1 && last_move.end_pos.rank == 3 {
-                                if dest.rank == 2 && dest.file == last_move.end_pos.file {
-                                    capturing_move = CaptureResult::EnPassant;
+            // If moving pawn is in correct spot
+            if start.rank == 2 || start.rank == 4 {
+                println!("Correct starting rank");
+                if let Some(last_move) = board.get_previous_move() {
+                    println!("Previous move: {last_move:?}");
+                    // Previous move was a pawn move
+                    if last_move.piece.piece_type == PieceType::Pawn {
+                        println!("Last move was pawn");
+                        // Previous pawn move was a two-square move
+                        if last_move.start_pos.rank.abs_diff(last_move.end_pos.rank) == 2 {
+                            println!("Last move was pawn moving 2");
+                            match last_move.piece.color {
+                                PieceColor::White => {
+                                    println!("white");
+                                    println!("{:?}", last_move.end_pos);
+                                    println!("{:?}", dest);
+                                    // Attempting a capture to the square behind the white pawn that moved two
+                                    if dest.rank == 2 && dest.file == last_move.end_pos.file {
+                                        capturing_move = true;
+                                        capture_type = CaptureResult::EnPassant;
+                                    } else {
+                                        return Err(MoveError::PawnEnPassantNotValid);
+                                    }
                                 }
-                            }
-                        }
-                        PieceColor::Black => {
-                            if last_move.start_pos.rank == 6 && last_move.end_pos.rank == 4 {
-                                if dest.rank == 5 && dest.file == last_move.end_pos.file {
-                                    capturing_move = CaptureResult::EnPassant;
+                                PieceColor::Black => {
+                                    println!("black");
+                                    println!("{:?}", last_move.end_pos);
+                                    println!("{:?}", dest);
+                                    // Attempting a capture to the square behind the black pawn that moved two
+                                    if dest.rank == 5 && dest.file == last_move.end_pos.file {
+                                        println!("Capturing behind black pawn");
+                                        capturing_move = true;
+                                        capture_type = CaptureResult::EnPassant;
+                                    } else {
+                                        return Err(MoveError::PawnEnPassantNotValid);
+                                    }
                                 }
                             }
                         }
@@ -148,14 +174,18 @@ pub fn is_valid_move(
                 }
             }
 
-            if capturing_move != CaptureResult::None {
+            if capturing_move {
                 // Pawns can only capture diagonally adjacent pieces
                 if dest.file.abs_diff(start.file) != 1 || dest.rank.abs_diff(start.rank) != 1 {
                     return Err(MoveError::PawnMustCaptureDiagonal);
                 }
+            } else {
+                if start.file != dest.file {
+                    return Err(MoveError::PawnMustCaptureDiagonal);
+                }
             }
 
-            Ok(capturing_move)
+            Ok(capture_type)
         }
         PieceType::King => {
             if dest.file.abs_diff(start.file) > 1 {
@@ -163,33 +193,33 @@ pub fn is_valid_move(
             } else if dest.rank.abs_diff(start.rank) > 1 {
                 Err(MoveError::RankDifferenceGreater)
             } else {
-                Ok(capturing_move)
+                Ok(capture_type)
             }
         }
         PieceType::Rook => {
             if is_cardinal_move(start, dest) {
-                Ok(capturing_move)
+                Ok(capture_type)
             } else {
                 Err(MoveError::RookMustMoveCardinal)
             }
         }
         PieceType::Bishop => {
             if is_diagonal_move(start, dest) {
-                Ok(capturing_move)
+                Ok(capture_type)
             } else {
                 Err(MoveError::BishopMustMoveDiagonal)
             }
         }
         PieceType::Queen => {
             if is_diagonal_move(start, dest) || is_cardinal_move(start, dest) {
-                Ok(capturing_move)
+                Ok(capture_type)
             } else {
                 Err(MoveError::MoveNotStraightLine)
             }
         }
         PieceType::Knight => {
             if is_knight_move(start, dest) {
-                Ok(capturing_move)
+                Ok(capture_type)
             } else {
                 Err(MoveError::KnightInvalidMove)
             }
@@ -298,8 +328,8 @@ mod tests {
     #[cfg(test)]
     mod pawn_tests {
         use crate::game::board::Board;
-        use crate::game::moves::Move;
-        use crate::game::piece::piece_info::{PieceLoc, PieceType};
+        use crate::game::moves::{CaptureResult, Move};
+        use crate::game::piece::piece_info::{PieceColor, PieceLoc, PieceType};
 
         fn setup_e4() -> Board {
             let mut board = Board::new();
@@ -335,6 +365,7 @@ mod tests {
             let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
 
             assert_eq!(true, verdict.is_ok());
+            assert_eq!(CaptureResult::None, verdict.unwrap());
         }
 
         #[test]
@@ -350,6 +381,7 @@ mod tests {
             let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
 
             assert_eq!(true, verdict.is_ok());
+            assert_eq!(CaptureResult::None, verdict.unwrap());
         }
 
         #[test]
@@ -365,6 +397,7 @@ mod tests {
             let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
 
             assert_eq!(true, verdict.is_ok());
+            assert_eq!(CaptureResult::None, verdict.unwrap());
         }
 
         #[test]
@@ -425,7 +458,7 @@ mod tests {
             let verdict = super::is_valid_move(&board, &piece, &start_pos, &end_pos);
 
             assert_eq!(true, verdict.is_ok());
-            assert_eq!(true, verdict.unwrap()); // Capture returns bool = true
+            assert_eq!(CaptureResult::Normal, verdict.unwrap()); // Capture returns bool = true
         }
 
         #[test]
@@ -444,16 +477,25 @@ mod tests {
                 end_pos: PieceLoc { rank: 4, file: 5 },
             });
 
+            assert_eq!(board.move_list[0].piece.color, PieceColor::White);
+            assert_eq!(board.move_list[1].piece.color, PieceColor::Black);
+
             // Can only en passant pawns
             assert_eq!(white_e_pawn.piece_type, PieceType::Pawn);
             assert_eq!(black_f_pawn.piece_type, PieceType::Pawn);
 
+            // Confirming pawns are next to each other after moving
+            assert_eq!(white_e_pawn, board.board[36].unwrap());
+            assert_eq!(black_f_pawn, board.board[37].unwrap());
+
             let start_pos = PieceLoc { rank: 4, file: 4 };
             let end_pos = PieceLoc { rank: 5, file: 5 };
 
+            println!("{:?}", board.move_list);
+
             let verdict = super::is_valid_move(&board, &white_e_pawn, &start_pos, &end_pos);
             assert_eq!(true, verdict.is_ok());
-            assert_eq!(true, verdict.unwrap());
+            assert_eq!(CaptureResult::EnPassant, verdict.unwrap());
         }
 
         #[test]

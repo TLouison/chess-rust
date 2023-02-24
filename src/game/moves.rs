@@ -3,7 +3,7 @@ use crate::game::piece::{piece_info::PieceLoc, Piece};
 
 pub mod move_checker;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum CaptureResult {
     Normal,
     EnPassant,

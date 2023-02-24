@@ -1,4 +1,3 @@
-
 use std::fmt;
 
 pub mod piece_info {
@@ -95,7 +94,7 @@ pub mod piece_info {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct Piece {
     pub piece_type: piece_info::PieceType,
     pub color: piece_info::PieceColor,
