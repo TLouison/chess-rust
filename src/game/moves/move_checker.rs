@@ -5,6 +5,8 @@ use crate::game::piece::{
 };
 use core::fmt;
 
+use super::CaptureResult;
+
 #[derive(Debug)]
 pub enum MoveError {
     WrongColorPiece,
@@ -67,7 +69,7 @@ pub fn is_valid_move(
     piece: &Piece,
     start: &PieceLoc,
     dest: &PieceLoc,
-) -> Result<bool, MoveError> {
+) -> Result<CaptureResult, MoveError> {
     // Confirm the correct color piece is being moved depending on whose turn it is
     if board.current_turn != piece.color {
         return Err(MoveError::WrongColorPiece);
@@ -82,13 +84,13 @@ pub fn is_valid_move(
         return Err(MoveError::NoPositionChange);
     }
 
-    // Check if there is a piece in the way, making this a capturing move (also check for en passant)
-    let mut capturing_move = false;
+    // Check if there is a piece in the way, making this a capturing move
+    let mut capturing_move = CaptureResult::None;
     if let Some(existing_piece) = board.get_piece_at_location(*dest) {
         if existing_piece.color == piece.color {
             return Err(MoveError::OccupiedBySameColor);
         } else {
-            capturing_move = true;
+            capturing_move = CaptureResult::Normal;
         }
     }
 
@@ -124,7 +126,29 @@ pub fn is_valid_move(
                 }
             }
 
-            if capturing_move {
+            // Special case: check for en passant conditions
+            if let Some(last_move) = board.get_previous_move() {
+                if last_move.piece.piece_type == PieceType::Pawn {
+                    match last_move.piece.color {
+                        PieceColor::White => {
+                            if last_move.start_pos.rank == 1 && last_move.end_pos.rank == 3 {
+                                if dest.rank == 2 && dest.file == last_move.end_pos.file {
+                                    capturing_move = CaptureResult::EnPassant;
+                                }
+                            }
+                        }
+                        PieceColor::Black => {
+                            if last_move.start_pos.rank == 6 && last_move.end_pos.rank == 4 {
+                                if dest.rank == 5 && dest.file == last_move.end_pos.file {
+                                    capturing_move = CaptureResult::EnPassant;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if capturing_move != CaptureResult::None {
                 // Pawns can only capture diagonally adjacent pieces
                 if dest.file.abs_diff(start.file) != 1 || dest.rank.abs_diff(start.rank) != 1 {
                     return Err(MoveError::PawnMustCaptureDiagonal);
@@ -137,30 +161,30 @@ pub fn is_valid_move(
             if dest.file.abs_diff(start.file) > 1 {
                 Err(MoveError::FileDifferenceGreater)
             } else if dest.rank.abs_diff(start.rank) > 1 {
-                Err(MoveError::FileDifferenceGreater)
+                Err(MoveError::RankDifferenceGreater)
             } else {
                 Ok(capturing_move)
             }
         }
         PieceType::Rook => {
-            if !is_cardinal_move(start, dest) {
-                Err(MoveError::RookMustMoveCardinal)
-            } else {
+            if is_cardinal_move(start, dest) {
                 Ok(capturing_move)
+            } else {
+                Err(MoveError::RookMustMoveCardinal)
             }
         }
         PieceType::Bishop => {
-            if !is_diagonal_move(start, dest) {
-                Err(MoveError::BishopMustMoveDiagonal)
-            } else {
+            if is_diagonal_move(start, dest) {
                 Ok(capturing_move)
+            } else {
+                Err(MoveError::BishopMustMoveDiagonal)
             }
         }
         PieceType::Queen => {
-            if !is_diagonal_move(start, dest) && !is_cardinal_move(start, dest) {
-                Err(MoveError::MoveNotStraightLine)
-            } else {
+            if is_diagonal_move(start, dest) || is_cardinal_move(start, dest) {
                 Ok(capturing_move)
+            } else {
+                Err(MoveError::MoveNotStraightLine)
             }
         }
         PieceType::Knight => {

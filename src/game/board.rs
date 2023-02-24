@@ -7,6 +7,8 @@ use crate::game::piece::{
     Piece,
 };
 
+use super::moves::CaptureResult;
+
 #[derive(Clone, Debug)]
 pub struct Board {
     pub ranks: u8,
@@ -115,6 +117,23 @@ impl Board {
         new_move_list
     }
 
+    fn get_captured_piece_idx(&self, result: CaptureResult, m: Move) -> Option<usize> {
+        match result {
+            CaptureResult::Normal => Some(self.get_board_index_from_loc(m.end_pos)),
+            CaptureResult::EnPassant => match m.piece.color {
+                PieceColor::White => Some(self.get_board_index_from_loc(PieceLoc {
+                    rank: m.end_pos.rank - 1,
+                    file: m.end_pos.file,
+                })),
+                PieceColor::Black => Some(self.get_board_index_from_loc(PieceLoc {
+                    rank: m.end_pos.rank + 1,
+                    file: m.end_pos.file,
+                })),
+            },
+            CaptureResult::None => None,
+        }
+    }
+
     pub fn move_piece(mut self, new_move: Move) -> Board {
         let selected_piece = new_move.piece;
         let is_valid_move = move_checker::is_valid_move(
@@ -132,13 +151,19 @@ impl Board {
                 let start_board_idx = self.get_board_index_from_loc(new_move.start_pos);
                 let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
 
-                if capturing_move {
-                    if let Some(captured_piece) = new_board[end_board_idx] {
+                if let Some(captured_piece_idx) =
+                    self.get_captured_piece_idx(capturing_move, new_move)
+                {
+                    if let Some(captured_piece) = new_board[captured_piece_idx] {
                         let color_grave = new_graveyard
                             .get_mut(&captured_piece.color)
                             .expect("Didn't find color in graveyard");
                         let piece_grave = color_grave.entry(captured_piece.piece_type).or_insert(1);
                         *piece_grave += 1;
+
+                        new_board[captured_piece_idx] = None;
+                    } else {
+                        panic!("Somehow captured peice that didn't exist.");
                     }
                 }
                 new_board[end_board_idx] = new_board[start_board_idx];
@@ -150,6 +175,10 @@ impl Board {
                 self
             }
         }
+    }
+
+    pub fn get_previous_move(&self) -> Option<Move> {
+        self.move_list.last().cloned()
     }
 
     pub fn get_piece_at_location(&self, loc: PieceLoc) -> Option<Piece> {

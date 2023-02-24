@@ -3,6 +3,13 @@ use crate::game::piece::{piece_info::PieceLoc, Piece};
 
 pub mod move_checker;
 
+#[derive(PartialEq)]
+pub enum CaptureResult {
+    Normal,
+    EnPassant,
+    None,
+}
+
 #[derive(Clone, Debug)]
 pub struct Move {
     pub piece: Piece,
