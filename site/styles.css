@@ -1,0 +1,241 @@
+/* START CSS RESET */
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+/* END OF CSS RESET */
+
+:root {
+    --square-size: 94px;
+    --rounding-size: 8px;
+
+    /* Color pallette */
+    --gray: #dad2d8ff;
+    --secondary: #004ba8ff;
+    --primary: #0f8b8dff;
+    --background: #24272bff;
+    --black: #07070aff;
+    --purple: rgba(130,39,238,1);
+    --orange: rgba(232,133,4,1);
+    --light-orange: rgba(224, 177, 114);
+
+    --text-gradient: linear-gradient(to right, var(--purple), var(--orange));
+    --background-gradient: linear-gradient(to right, var(--purple), var(--orange), var(--purple));
+
+    --shadow: 7px 8px 19px 0px rgba(0,0,0,0.55); 
+
+    font-family: 'Inter', sans-serif;
+}
+
+.game-container {
+    height: 100svh;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+
+    background: var(--background);
+}
+
+.header {
+    margin-right: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: white;
+}
+
+.header > h1 {
+    background: var(--text-gradient);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+
+    position: relative;
+    font-size: 6em;
+    font-family: 'Pacifico', cursive;
+    margin-bottom: 2rem;
+}
+
+.header > h1:after {
+    position: absolute;
+    content: '';
+    height: 4px;
+    width: 110%;
+    background: var(--purple);
+    top: 110%;
+    left: -5%;
+    border-radius: 2px;
+}
+
+.header > h2 {
+    color: var(--orange);
+    font-size: 2em;
+}
+
+.header > h2 > .span {
+    font-weight: 600; 
+    scale: 1.1;
+}
+    
+
+.game {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 0;
+    gap: 32px;
+}
+
+@keyframes background-pan {
+    from {
+        background-position: 0% center;
+    }
+    to {
+        background-position: -200% center;
+    }
+}
+
+.board-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+
+    aspect-ratio: 1;
+    width: calc((100vw/2));
+
+    animation: background-pan 10s linear infinite;
+    background: var(--background-gradient);
+    -webkit-box-shadow: var(--shadow);
+    box-shadow: var(--shadow);
+    background-size: 200%;
+    border-radius: var(--rounding-size);
+}
+
+.board {
+    display: grid;
+    height: calc(100% - 8px);
+    width: calc(100% - 8px);
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(8, 1fr);
+    overflow: hidden;
+    border-radius: var(--rounding-size);
+}
+
+.board::before {
+    position: absolute;
+    content: '';
+    inset: 4px;
+
+}
+
+.rank {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: 1fr;
+}
+
+.rank:nth-child(odd) > .square:nth-child(even):before{
+    background: #747474;
+}
+
+.rank:nth-child(even) > .square:nth-child(odd):before{
+    background: #747474;
+}
+
+.square {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    aspect-ratio: 1;
+}
+.square:hover {
+    opacity: 0.5;
+}
+
+.square:before {
+    background-color: #c7c7c7;
+    content: '';
+    position: absolute;
+    inset: 1px;
+    z-index: -2;
+}
+
+.square > svg {
+    width: 75%;
+    height: 75%;
+    box-sizing: border-box;
+    filter: drop-shadow(0px 0px 2px var(--orange));
+}
+
+.movelist {
+    position: relative;
+    margin-right: 1rem;
+    width: calc(100% - 8px);
+    max-width: 15vw;
+    height: clamp(150px, 80%, 80%);
+    background: var(--purple);
+    border-radius: var(--rounding-size);
+    -webkit-box-shadow: var(--shadow);
+    box-shadow: var(--shadow);
+    
+}
+
+.movelist:before {
+    background: var(--gray);
+    content: '';
+    position: absolute;
+    border-radius: 4px;
+    inset: 4px;
+}
