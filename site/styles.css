@@ -73,8 +73,9 @@ table {
 }
 
 .game-container {
-    height: 100svh;
     display: flex;
+    width: 100vw;
+    height: 100vh;
     justify-content: space-around;
     align-items: center;
 
@@ -83,6 +84,8 @@ table {
 
 .header {
     margin-right: 1rem;
+    width: 100%;
+    max-width: 15vw;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -224,7 +227,7 @@ table {
     margin-right: 1rem;
     width: calc(100% - 8px);
     max-width: 15vw;
-    height: clamp(150px, 80%, 80%);
+    height: 80%;
     background: var(--purple);
     border-radius: var(--rounding-size);
     -webkit-box-shadow: var(--shadow);
