@@ -536,4 +536,95 @@ mod tests {
             assert_eq!(false, verdict.is_ok());
         }
     }
+
+    mod knight_tests {
+        use crate::game::board::Board;
+        use crate::game::moves::move_checker::is_knight_move;
+        use crate::game::moves::CaptureResult;
+        use crate::game::piece::piece_info::PieceLoc;
+
+        fn setup_board_for_knight_capture() -> Board {
+            let mut board = Board::new();
+
+            board.board[36] = board.board[1];
+            board.board[1] = None;
+
+            board
+        }
+
+        #[test]
+        fn test_valid_knight_move_all_directions() {
+            // Up-right
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(5, 4))
+            );
+            // Right-up
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(4, 5))
+            );
+            // Right-down
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(2, 5))
+            );
+            // Down-right
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(1, 4))
+            );
+            // Down-left
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(1, 2))
+            );
+            // Left-down
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(2, 1))
+            );
+            // Left-up
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(4, 1))
+            );
+            // Up-left
+            assert_eq!(
+                true,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(5, 2))
+            );
+        }
+
+        #[test]
+        fn test_invalid_knight_moves() {
+            // Vertical
+            assert_eq!(
+                false,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(4, 3))
+            );
+            // Horizontal
+            assert_eq!(
+                false,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(3, 4))
+            );
+            // Diagonal
+            assert_eq!(
+                false,
+                is_knight_move(&PieceLoc::new(3, 3), &PieceLoc::new(4, 4))
+            );
+        }
+
+        #[test]
+        fn test_knight_capture() {
+            let board = setup_board_for_knight_capture();
+            let piece = board.board[36].unwrap();
+
+            let verdict =
+                super::is_valid_move(&board, &piece, &PieceLoc::new(4, 4), &PieceLoc::new(6, 5));
+
+            assert_eq!(true, verdict.is_ok());
+            assert_eq!(CaptureResult::Normal, verdict.unwrap());
+        }
+    }
 }
