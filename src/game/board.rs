@@ -117,7 +117,36 @@ impl Board {
         new_move_list
     }
 
-    fn get_captured_piece_idx(&self, result: CaptureResult, m: Move) -> Option<usize> {
+    fn handle_move_piece_to_graveyard(
+        &mut self,
+        capture_type: &CaptureResult,
+        m: &Move,
+    ) -> HashMap<PieceColor, HashMap<PieceType, u8>> {
+        match capture_type {
+            CaptureResult::Normal | CaptureResult::EnPassant => {
+                if let Some(captured_piece_idx) = self.get_captured_piece_idx(capture_type, m) {
+                    if let Some(captured_piece) = self.board[captured_piece_idx] {
+                        let mut new_graveyard = self.graveyard.clone();
+                        let color_grave = new_graveyard
+                            .get_mut(&captured_piece.color)
+                            .expect("Didn't find color in graveyard");
+                        let piece_grave = color_grave.entry(captured_piece.piece_type).or_insert(1);
+                        *piece_grave += 1;
+
+                        self.board[captured_piece_idx] = None;
+                        return new_graveyard;
+                    } else {
+                        panic!("Somehow captured piece that didn't exist.");
+                    }
+                }
+            }
+            _ => (),
+        }
+        // Fallback to returning the old graveyard if no capture happened
+        self.graveyard.clone()
+    }
+
+    fn get_captured_piece_idx(&self, result: &CaptureResult, m: &Move) -> Option<usize> {
         match result {
             CaptureResult::Normal => Some(self.get_board_index_from_loc(m.end_pos)),
             CaptureResult::EnPassant => match m.piece.color {
@@ -134,47 +163,36 @@ impl Board {
         }
     }
 
+    fn handle_moving_piece(&self, m: &Move) -> Vec<Option<Piece>> {
+        let mut new_board = self.board.clone();
+        let mut selected_piece = m.piece;
+
+        let start_board_idx = self.get_board_index_from_loc(m.start_pos);
+        let end_board_idx = self.get_board_index_from_loc(m.end_pos);
+
+        selected_piece.has_moved = true;
+        new_board[end_board_idx] = Some(selected_piece);
+        new_board[start_board_idx] = None;
+
+        // Update the moved piece's has_moved flag
+        if let Some(_piece) = new_board[end_board_idx] {
+            new_board[end_board_idx].unwrap().has_moved = true;
+        }
+        new_board
+    }
+
     pub fn move_piece(mut self, new_move: Move) -> Board {
-        let mut selected_piece = new_move.piece;
         let is_valid_move = move_checker::is_valid_move(
             &self,
-            &selected_piece,
+            &new_move.piece,
             &new_move.start_pos,
             &new_move.end_pos,
         );
         match is_valid_move {
             Ok(capturing_move) => {
                 let new_move_list = self.record_move(&new_move);
-                let mut new_board = self.board.clone();
-                let mut new_graveyard = self.graveyard.clone();
-
-                let start_board_idx = self.get_board_index_from_loc(new_move.start_pos);
-                let end_board_idx = self.get_board_index_from_loc(new_move.end_pos);
-
-                if let Some(captured_piece_idx) =
-                    self.get_captured_piece_idx(capturing_move, new_move)
-                {
-                    if let Some(captured_piece) = new_board[captured_piece_idx] {
-                        let color_grave = new_graveyard
-                            .get_mut(&captured_piece.color)
-                            .expect("Didn't find color in graveyard");
-                        let piece_grave = color_grave.entry(captured_piece.piece_type).or_insert(1);
-                        *piece_grave += 1;
-
-                        new_board[captured_piece_idx] = None;
-                    } else {
-                        panic!("Somehow captured piece that didn't exist.");
-                    }
-                }
-
-                selected_piece.has_moved = true;
-                new_board[end_board_idx] = Some(selected_piece);
-                new_board[start_board_idx] = None;
-
-                // Update the moved piece's has_moved flag
-                if let Some(_piece) = new_board[end_board_idx] {
-                    new_board[end_board_idx].unwrap().has_moved = true;
-                }
+                let new_board = self.handle_moving_piece(&new_move);
+                let new_graveyard = self.handle_move_piece_to_graveyard(&capturing_move, &new_move);
 
                 return self.update(new_board, new_move_list, new_graveyard);
             }
