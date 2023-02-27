@@ -5,7 +5,17 @@ use crate::game::piece::{
 };
 use core::fmt;
 
-use super::MoveResult;
+#[derive(Clone, PartialEq, Debug)]
+pub enum MoveType {
+    Normal,
+    EnPassant,
+    Castling,
+}
+
+pub struct MoveResult {
+    pub move_type: MoveType,
+    pub capturing: bool,
+}
 
 #[derive(Debug)]
 pub enum MoveError {
@@ -44,6 +54,9 @@ impl fmt::Display for MoveError {
                     MoveError::KnightInvalidMove => output = "Knights may only move two squares in one cardinal direction, and one square in a perpendicular direction.",
                     MoveError::RookMustMoveCardinal => output = "Rooks may only move horizontally or vertically.",
                     MoveError::BishopMustMoveDiagonal => output = "Bishops may only move diagonally.",
+                    MoveError::NoRookToCastleWith => output = "There is no valid rook to castle with on that side.",
+                    MoveError::CannotCastleWithMovedRook => output = "You cannot castle with a rook that has previously moved.",
+                    MoveError::CannotCastleWithMovedKing => output = "You cannot castle with a king that has previously moved.",
                 }
         write!(f, "Invalid Move: {}", output)
     }
@@ -90,14 +103,13 @@ pub fn is_valid_move(
     }
 
     // Check if there is a piece in the way, making this a capturing move
-    let mut capturing_move = false;
-    let mut capture_type = MoveType::Normal;
+    let mut capturing = false;
+    let mut move_type = MoveType::Normal;
     if let Some(existing_piece) = board.get_piece_at_location(*dest) {
         if existing_piece.color == piece.color {
             return Err(MoveError::OccupiedBySameColor);
         } else {
-            capturing_move = true;
-            capture_type = CaptureResult::Normal;
+            capturing = true;
         }
     }
 
@@ -149,8 +161,8 @@ pub fn is_valid_move(
                                 PieceColor::White => {
                                     // Attempting a capture to the square behind the white pawn that moved two
                                     if dest.rank == 2 && dest.file == last_move.end_pos.file {
-                                        capturing_move = true;
-                                        capture_type = CaptureResult::EnPassant;
+                                        capturing = true;
+                                        move_type = MoveType::EnPassant;
                                     } else {
                                         return Err(MoveError::PawnEnPassantNotValid);
                                     }
@@ -159,8 +171,8 @@ pub fn is_valid_move(
                                     // Attempting a capture to the square behind the black pawn that moved two
                                     if dest.rank == 5 && dest.file == last_move.end_pos.file {
                                         println!("Capturing behind black pawn");
-                                        capturing_move = true;
-                                        capture_type = CaptureResult::EnPassant;
+                                        capturing = true;
+                                        move_type = MoveType::EnPassant;
                                     } else {
                                         return Err(MoveError::PawnEnPassantNotValid);
                                     }
@@ -171,7 +183,7 @@ pub fn is_valid_move(
                 }
             }
 
-            if capturing_move {
+            if capturing {
                 // Pawns can only capture diagonally adjacent pieces
                 if dest.file.abs_diff(start.file) != 1 || dest.rank.abs_diff(start.rank) != 1 {
                     return Err(MoveError::PawnMustCaptureDiagonal);
@@ -182,7 +194,10 @@ pub fn is_valid_move(
                 }
             }
 
-            Ok(capture_type)
+            Ok(MoveResult {
+                move_type,
+                capturing,
+            })
         }
         PieceType::King => {
             if dest.file.abs_diff(start.file) > 1 {
@@ -208,7 +223,11 @@ pub fn is_valid_move(
 
                 if let Some(rook) = castling_rook {
                     if !rook.has_moved {
-                        Ok(capture_type)
+                        move_type = MoveType::Castling;
+                        Ok(MoveResult {
+                            move_type,
+                            capturing,
+                        })
                     } else {
                         Err(MoveError::CannotCastleWithMovedRook)
                     }
@@ -216,33 +235,48 @@ pub fn is_valid_move(
                     Err(MoveError::NoRookToCastleWith)
                 }
             } else {
-                Ok(capture_type)
+                Ok(MoveResult {
+                    move_type,
+                    capturing,
+                })
             }
         }
         PieceType::Rook => {
             if is_cardinal_move(start, dest) {
-                Ok(capture_type)
+                Ok(MoveResult {
+                    move_type,
+                    capturing,
+                })
             } else {
                 Err(MoveError::RookMustMoveCardinal)
             }
         }
         PieceType::Bishop => {
             if is_diagonal_move(start, dest) {
-                Ok(capture_type)
+                Ok(MoveResult {
+                    move_type,
+                    capturing,
+                })
             } else {
                 Err(MoveError::BishopMustMoveDiagonal)
             }
         }
         PieceType::Queen => {
             if is_diagonal_move(start, dest) || is_cardinal_move(start, dest) {
-                Ok(capture_type)
+                Ok(MoveResult {
+                    move_type,
+                    capturing,
+                })
             } else {
                 Err(MoveError::MoveNotStraightLine)
             }
         }
         PieceType::Knight => {
             if is_knight_move(start, dest) {
-                Ok(capture_type)
+                Ok(MoveResult {
+                    move_type,
+                    capturing,
+                })
             } else {
                 Err(MoveError::KnightInvalidMove)
             }

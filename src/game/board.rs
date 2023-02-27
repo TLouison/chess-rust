@@ -1,13 +1,13 @@
 use core::fmt;
 use std::collections::HashMap;
 
-use crate::game::moves::{move_checker, Move};
+use crate::game::moves::Move;
 use crate::game::piece::{
     piece_info::{PieceColor, PieceLoc, PieceType},
     Piece,
 };
 
-use super::moves::CaptureResult;
+use super::moves::move_checker::MoveType;
 
 #[derive(Clone, Debug)]
 pub struct Board {
@@ -109,22 +109,17 @@ impl Board {
 
     fn record_move(&mut self, new_move: &Move) -> Vec<Move> {
         let mut new_move_list = self.move_list.clone();
-        new_move_list.push(Move {
-            piece: new_move.piece.clone(),
-            start_pos: new_move.start_pos.clone(),
-            end_pos: new_move.end_pos.clone(),
-        });
+        new_move_list.push(new_move.clone());
         new_move_list
     }
 
     fn handle_move_piece_to_graveyard(
         &mut self,
-        capture_type: &CaptureResult,
         m: &Move,
     ) -> HashMap<PieceColor, HashMap<PieceType, u8>> {
-        match capture_type {
-            CaptureResult::Normal | CaptureResult::EnPassant => {
-                if let Some(captured_piece_idx) = self.get_captured_piece_idx(capture_type, m) {
+        match m.move_type {
+            MoveType::Normal | MoveType::EnPassant => {
+                if let Some(captured_piece_idx) = self.get_captured_piece_idx(m) {
                     if let Some(captured_piece) = self.board[captured_piece_idx] {
                         let mut new_graveyard = self.graveyard.clone();
                         let color_grave = new_graveyard
@@ -146,20 +141,22 @@ impl Board {
         self.graveyard.clone()
     }
 
-    fn get_captured_piece_idx(&self, result: &CaptureResult, m: &Move) -> Option<usize> {
-        match result {
-            CaptureResult::Normal => Some(self.get_board_index_from_loc(m.end_pos)),
-            CaptureResult::EnPassant => match m.piece.color {
-                PieceColor::White => Some(self.get_board_index_from_loc(PieceLoc {
-                    rank: m.end_pos.rank - 1,
-                    file: m.end_pos.file,
-                })),
-                PieceColor::Black => Some(self.get_board_index_from_loc(PieceLoc {
-                    rank: m.end_pos.rank + 1,
-                    file: m.end_pos.file,
-                })),
-            },
-            CaptureResult::None => None,
+    fn get_captured_piece_idx(&self, m: &Move) -> Option<usize> {
+        match m.move_type {
+            MoveType::Normal => Some(self.get_board_index_from_loc(m.end_pos)),
+            MoveType::EnPassant => {
+                match m.piece.color {
+                    PieceColor::White => Some(self.get_board_index_from_loc(PieceLoc::new(
+                        m.end_pos.rank - 1,
+                        m.end_pos.file,
+                    ))),
+                    PieceColor::Black => Some(self.get_board_index_from_loc(PieceLoc::new(
+                        m.end_pos.rank + 1,
+                        m.end_pos.file,
+                    ))),
+                }
+            }
+            MoveType::Castling => panic!("Cannot castle into a capture."),
         }
     }
 
@@ -181,26 +178,13 @@ impl Board {
         new_board
     }
 
+    // Accepts a move, which has been verified to be a valid move by the Move::new() constructor
     pub fn move_piece(mut self, new_move: Move) -> Board {
-        let is_valid_move = move_checker::is_valid_move(
-            &self,
-            &new_move.piece,
-            &new_move.start_pos,
-            &new_move.end_pos,
-        );
-        match is_valid_move {
-            Ok(capturing_move) => {
-                let new_move_list = self.record_move(&new_move);
-                let new_board = self.handle_moving_piece(&new_move);
-                let new_graveyard = self.handle_move_piece_to_graveyard(&capturing_move, &new_move);
+        let new_move_list = self.record_move(&new_move);
+        let new_board = self.handle_moving_piece(&new_move);
+        let new_graveyard = self.handle_move_piece_to_graveyard(&new_move);
 
-                return self.update(new_board, new_move_list, new_graveyard);
-            }
-            Err(error) => {
-                println!("{}", error);
-                self
-            }
-        }
+        self.update(new_board, new_move_list, new_graveyard)
     }
 
     pub fn get_previous_move(&self) -> Option<Move> {

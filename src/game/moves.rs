@@ -1,21 +1,9 @@
 use crate::game::board::{self, Board};
 use crate::game::piece::{piece_info::PieceLoc, Piece};
 
-use self::move_checker::MoveError;
+use self::move_checker::{MoveError, MoveType};
 
 pub mod move_checker;
-
-#[derive(Clone, PartialEq, Debug)]
-pub enum MoveType {
-    Normal,
-    EnPassant,
-    Castling,
-}
-
-pub struct MoveResult {
-    move_type: MoveType,
-    capturing: bool,
-}
 
 #[derive(Clone, Debug)]
 pub struct Move {
