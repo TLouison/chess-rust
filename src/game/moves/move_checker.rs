@@ -5,7 +5,7 @@ use crate::game::piece::{
 };
 use core::fmt;
 
-use super::CaptureResult;
+use super::MoveResult;
 
 #[derive(Debug)]
 pub enum MoveError {
@@ -22,6 +22,9 @@ pub enum MoveError {
     KnightInvalidMove,
     RookMustMoveCardinal,
     BishopMustMoveDiagonal,
+    NoRookToCastleWith,
+    CannotCastleWithMovedRook,
+    CannotCastleWithMovedKing,
 }
 
 impl fmt::Display for MoveError {
@@ -71,7 +74,7 @@ pub fn is_valid_move(
     piece: &Piece,
     start: &PieceLoc,
     dest: &PieceLoc,
-) -> Result<CaptureResult, MoveError> {
+) -> Result<MoveResult, MoveError> {
     // Confirm the correct color piece is being moved depending on whose turn it is
     if board.current_turn != piece.color {
         return Err(MoveError::WrongColorPiece);
@@ -88,7 +91,7 @@ pub fn is_valid_move(
 
     // Check if there is a piece in the way, making this a capturing move
     let mut capturing_move = false;
-    let mut capture_type = CaptureResult::None;
+    let mut capture_type = MoveType::Normal;
     if let Some(existing_piece) = board.get_piece_at_location(*dest) {
         if existing_piece.color == piece.color {
             return Err(MoveError::OccupiedBySameColor);
@@ -100,9 +103,9 @@ pub fn is_valid_move(
 
     match piece.piece_type {
         PieceType::Pawn => {
-            let max_diff = match start.rank {
-                1 | 6 => 2,
-                _ => 1,
+            let max_diff = match piece.has_moved {
+                true => 2,
+                false => 1,
             };
 
             // Confirm pawn cannot move 2 squares unless on the starting position
@@ -144,9 +147,6 @@ pub fn is_valid_move(
                             println!("Last move was pawn moving 2");
                             match last_move.piece.color {
                                 PieceColor::White => {
-                                    println!("white");
-                                    println!("{:?}", last_move.end_pos);
-                                    println!("{:?}", dest);
                                     // Attempting a capture to the square behind the white pawn that moved two
                                     if dest.rank == 2 && dest.file == last_move.end_pos.file {
                                         capturing_move = true;
@@ -156,9 +156,6 @@ pub fn is_valid_move(
                                     }
                                 }
                                 PieceColor::Black => {
-                                    println!("black");
-                                    println!("{:?}", last_move.end_pos);
-                                    println!("{:?}", dest);
                                     // Attempting a capture to the square behind the black pawn that moved two
                                     if dest.rank == 5 && dest.file == last_move.end_pos.file {
                                         println!("Capturing behind black pawn");
@@ -192,6 +189,32 @@ pub fn is_valid_move(
                 Err(MoveError::FileDifferenceGreater)
             } else if dest.rank.abs_diff(start.rank) > 1 {
                 Err(MoveError::RankDifferenceGreater)
+            } else if dest.rank == start.rank && dest.file.abs_diff(start.file) == 2 {
+                // SPECIAL MOVE: Castling
+
+                // King cannot have moved for castling to be valid
+                if piece.has_moved {
+                    return Err(MoveError::CannotCastleWithMovedKing);
+                }
+
+                let castling_rook;
+                if dest.file < start.file {
+                    // Castling queenside
+                    castling_rook = board.get_piece_at_location(PieceLoc::new(dest.rank, 0));
+                } else {
+                    // Castling kingside
+                    castling_rook = board.get_piece_at_location(PieceLoc::new(dest.rank, 7));
+                }
+
+                if let Some(rook) = castling_rook {
+                    if !rook.has_moved {
+                        Ok(capture_type)
+                    } else {
+                        Err(MoveError::CannotCastleWithMovedRook)
+                    }
+                } else {
+                    Err(MoveError::NoRookToCastleWith)
+                }
             } else {
                 Ok(capture_type)
             }
