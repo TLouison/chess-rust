@@ -181,7 +181,7 @@ pub fn is_valid_move(
                 }
             } else {
                 if start.file != dest.file {
-                    return Err(MoveError::PawnMustCaptureDiagonal);
+                    return Err(MoveError::PawnMustMoveForward);
                 }
             }
 
