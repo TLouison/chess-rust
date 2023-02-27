@@ -117,25 +117,28 @@ impl Board {
         &mut self,
         m: &Move,
     ) -> HashMap<PieceColor, HashMap<PieceType, u8>> {
-        match m.move_type {
-            MoveType::Normal | MoveType::EnPassant => {
-                if let Some(captured_piece_idx) = self.get_captured_piece_idx(m) {
-                    if let Some(captured_piece) = self.board[captured_piece_idx] {
-                        let mut new_graveyard = self.graveyard.clone();
-                        let color_grave = new_graveyard
-                            .get_mut(&captured_piece.color)
-                            .expect("Didn't find color in graveyard");
-                        let piece_grave = color_grave.entry(captured_piece.piece_type).or_insert(1);
-                        *piece_grave += 1;
+        if m.capturing {
+            match m.move_type {
+                MoveType::Normal | MoveType::EnPassant => {
+                    if let Some(captured_piece_idx) = self.get_captured_piece_idx(m) {
+                        if let Some(captured_piece) = self.board[captured_piece_idx] {
+                            let mut new_graveyard = self.graveyard.clone();
+                            let color_grave = new_graveyard
+                                .get_mut(&captured_piece.color)
+                                .expect("Didn't find color in graveyard");
+                            let piece_grave =
+                                color_grave.entry(captured_piece.piece_type).or_insert(1);
+                            *piece_grave += 1;
 
-                        self.board[captured_piece_idx] = None;
-                        return new_graveyard;
-                    } else {
-                        panic!("Somehow captured piece that didn't exist.");
+                            self.board[captured_piece_idx] = None;
+                            return new_graveyard;
+                        } else {
+                            panic!("Somehow captured piece that didn't exist.");
+                        }
                     }
                 }
+                _ => (),
             }
-            _ => (),
         }
         // Fallback to returning the old graveyard if no capture happened
         self.graveyard.clone()
