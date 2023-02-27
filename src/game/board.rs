@@ -135,7 +135,7 @@ impl Board {
     }
 
     pub fn move_piece(mut self, new_move: Move) -> Board {
-        let selected_piece = new_move.piece;
+        let mut selected_piece = new_move.piece;
         let is_valid_move = move_checker::is_valid_move(
             &self,
             &selected_piece,
@@ -163,11 +163,19 @@ impl Board {
 
                         new_board[captured_piece_idx] = None;
                     } else {
-                        panic!("Somehow captured peice that didn't exist.");
+                        panic!("Somehow captured piece that didn't exist.");
                     }
                 }
-                new_board[end_board_idx] = new_board[start_board_idx];
+
+                selected_piece.has_moved = true;
+                new_board[end_board_idx] = Some(selected_piece);
                 new_board[start_board_idx] = None;
+
+                // Update the moved piece's has_moved flag
+                if let Some(_piece) = new_board[end_board_idx] {
+                    new_board[end_board_idx].unwrap().has_moved = true;
+                }
+
                 return self.update(new_board, new_move_list, new_graveyard);
             }
             Err(error) => {

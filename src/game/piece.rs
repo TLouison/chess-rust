@@ -98,6 +98,7 @@ pub mod piece_info {
 pub struct Piece {
     pub piece_type: piece_info::PieceType,
     pub color: piece_info::PieceColor,
+    pub has_moved: bool,
 }
 
 impl Piece {
@@ -105,13 +106,18 @@ impl Piece {
         Piece {
             piece_type: p_type,
             color,
+            has_moved: false,
         }
     }
 }
 
 impl fmt::Display for Piece {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}", self.color, self.piece_type)
+        write!(
+            f,
+            "{} {}, has moved: {}",
+            self.color, self.piece_type, self.has_moved
+        )
     }
 }
 
@@ -120,6 +126,7 @@ impl fmt::Debug for Piece {
         f.debug_struct("Piece")
             .field("Type", &self.piece_type)
             .field("Color", &self.color)
+            .field("has_moved", &self.has_moved)
             .finish()
     }
 }
