@@ -29,8 +29,14 @@ pub fn prompt_make_move(game: &Board) -> Option<Move> {
             println!("Piece found: {:?}", piece);
 
             if let Some(target_location) = prompt_location() {
-                println!("Target chosen.");
-                return Some(Move::new(piece, location, target_location));
+                let new_move = Move::new(game, &piece, &location, &target_location);
+                match new_move {
+                    Ok(m) => return Some(m),
+                    Err(e) => {
+                        println!("{}", e);
+                        return None;
+                    }
+                }
             }
         } else {
             println!("No piece found at ({location:?})");
