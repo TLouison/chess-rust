@@ -239,16 +239,18 @@ pub fn is_valid_move(
                     return Err(MoveError::CannotCastleWithMovedKing);
                 }
 
-                let castling_rook;
+                let castling_rook_index;
                 if dest.file < start.file {
                     // Castling queenside
-                    castling_rook = board.get_piece_at_location(PieceLoc::new(dest.rank, 0));
+                    castling_rook_index = 0;
                 } else {
                     // Castling kingside
-                    castling_rook = board.get_piece_at_location(PieceLoc::new(dest.rank, 7));
+                    castling_rook_index = 7;
                 }
 
-                if let Some(rook) = castling_rook {
+                if let Some(rook) =
+                    board.get_piece_at_location(PieceLoc::new(dest.rank, castling_rook_index))
+                {
                     if !rook.has_moved {
                         move_type = MoveType::Castling;
                         Ok(MoveResult {
